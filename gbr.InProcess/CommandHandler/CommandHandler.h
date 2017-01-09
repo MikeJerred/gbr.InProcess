@@ -2,8 +2,6 @@
 
 #include <Windows.h>
 
-#include "Commands/Commands.h"
-
 namespace gbr::InProcess {
     class CommandHandler {
     private:
@@ -12,6 +10,8 @@ namespace gbr::InProcess {
         static const DWORD bufferSize = 0x1000;
 
         CommandHandler(std::wstring pipeName) : pipeName(pipeName), pipeHandle(INVALID_HANDLE_VALUE) {};
+        ~CommandHandler();
+
         void Connect();
         void Disconnect();
         void Listen();

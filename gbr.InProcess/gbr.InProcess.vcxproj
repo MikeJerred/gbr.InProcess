@@ -28,7 +28,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -69,8 +69,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(SolutionDir)..;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(SolutionDir)..;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -115,19 +115,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CommandHandler\CommandHandler.cpp" />
-    <ClCompile Include="CommandHandler\Commands\Commands.cpp" />
+    <ClCompile Include="DropsHandler\DropsHandler.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="TitleUpdater\TitleUpdater.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\gbr.Shared\gbr.Shared.vcxproj">
+      <Project>{35d90458-efbf-4a38-9c1b-c513fac6d4d7}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\GWCA\GWCA.2015.vcxproj">
       <Project>{b3359f05-68cf-4e7f-b9d6-d106f6d48a38}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommandHandler\CommandHandler.h" />
-    <ClInclude Include="CommandHandler\Commands\Commands.h" />
-    <ClInclude Include="Dependencies\json\json.hpp" />
+    <ClInclude Include="DropsHandler\DropsHandler.h" />
     <ClInclude Include="TitleUpdater\TitleUpdater.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -9,14 +9,8 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="CommandHandler\Commands">
-      <UniqueIdentifier>{33bf5e74-0bed-4ec1-ae31-a05665087b06}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Dependencies">
-      <UniqueIdentifier>{a7047717-5db4-4787-bd90-a9fcca2c0ed4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Dependencies\json">
-      <UniqueIdentifier>{eb16d750-35ed-4c75-8778-74a530e2af15}</UniqueIdentifier>
+    <Filter Include="DropsHandler">
+      <UniqueIdentifier>{b63eed75-a373-4a51-bb45-aaa28aae4e52}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -27,8 +21,8 @@
     <ClCompile Include="CommandHandler\CommandHandler.cpp">
       <Filter>CommandHandler</Filter>
     </ClCompile>
-    <ClCompile Include="CommandHandler\Commands\Commands.cpp">
-      <Filter>CommandHandler\Commands</Filter>
+    <ClCompile Include="DropsHandler\DropsHandler.cpp">
+      <Filter>DropsHandler</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -38,11 +32,8 @@
     <ClInclude Include="CommandHandler\CommandHandler.h">
       <Filter>CommandHandler</Filter>
     </ClInclude>
-    <ClInclude Include="CommandHandler\Commands\Commands.h">
-      <Filter>CommandHandler\Commands</Filter>
-    </ClInclude>
-    <ClInclude Include="Dependencies\json\json.hpp">
-      <Filter>Dependencies\json</Filter>
+    <ClInclude Include="DropsHandler\DropsHandler.h">
+      <Filter>DropsHandler</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

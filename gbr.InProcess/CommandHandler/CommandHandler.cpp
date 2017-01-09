@@ -3,14 +3,17 @@
 #include <string>
 #include <thread>
 #include <GWCA/GWCA.h>
-#include <GWCA/Managers/PlayerMgr.h>
+#include <GWCA/Managers/AgentMgr.h>
+#include <gbr.Shared/Commands/BaseCommand.h>
 
 #include "CommandHandler.h"
-#include "Commands/Commands.h"
 
 namespace gbr::InProcess {
+    using BaseCommand = gbr::Shared::Commands::BaseCommand;
+
     DWORD WINAPI CommandHandler::ThreadEntry(HMODULE hModule) {
-        auto charName = GW::Playermgr().GetPlayerName(0);
+        auto loginNumber = GW::Agents().GetPlayer()->LoginNumber;
+        auto charName = GW::Agents().GetPlayerNameByLoginNumber(loginNumber);
         auto pipeName = std::wstring(L"\\\\.\\pipe\\gbr_") + charName;
         auto instance = CommandHandler(pipeName);
 
@@ -24,6 +27,10 @@ namespace gbr::InProcess {
         }
 
         FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
+    }
+
+    CommandHandler::~CommandHandler() {
+        Disconnect();
     }
 
     void CommandHandler::Connect() {
@@ -43,10 +50,7 @@ namespace gbr::InProcess {
 
         auto connected = ConnectNamedPipe(pipeHandle, nullptr) || GetLastError() == ERROR_PIPE_CONNECTED;
 
-        if (connected) {
-
-        }
-        else {
+        if (!connected) {
             CloseHandle(pipeHandle);
         }
     }
@@ -65,7 +69,7 @@ namespace gbr::InProcess {
 
         while (pipeHandle != INVALID_HANDLE_VALUE) {
             if (ReadFile(pipeHandle, buffer, bufferSize, &bytesRead, NULL)) {
-                Command::ExecuteCommand((Command::BaseRequest*)buffer);
+                BaseCommand::ExecuteCommand((BaseCommand::BaseRequest*)buffer);
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
