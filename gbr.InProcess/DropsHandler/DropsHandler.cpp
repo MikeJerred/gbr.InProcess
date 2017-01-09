@@ -67,7 +67,7 @@ namespace gbr::InProcess {
                                         GW::Items().PickUpItem(item);
                                     }
                                     else {
-                                        GW::Agents().MoveDirect(agent->pos);
+                                        GW::Agents().Move(agent->pos);
                                     }
 
                                     return;

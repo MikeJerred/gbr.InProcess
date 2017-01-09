@@ -69,8 +69,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(SolutionDir)..;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(SolutionDir)..;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(SolutionDir);$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(SolutionDir);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -120,7 +120,7 @@
     <ClCompile Include="TitleUpdater\TitleUpdater.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\gbr.Shared\gbr.Shared.vcxproj">
+    <ProjectReference Include="..\gbr.Shared\gbr.Shared.vcxproj">
       <Project>{35d90458-efbf-4a38-9c1b-c513fac6d4d7}</Project>
     </ProjectReference>
     <ProjectReference Include="..\GWCA\GWCA.2015.vcxproj">

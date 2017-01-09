@@ -1,3 +1,6 @@
 [submodule "GWCA"]
 	path = GWCA
 	url = https://github.com/GregLando113/GWCA.git
+[submodule "gbr.Shared"]
+	path = gbr.Shared
+	url = https://github.com/MikeJerred/gbr.Shared.git
