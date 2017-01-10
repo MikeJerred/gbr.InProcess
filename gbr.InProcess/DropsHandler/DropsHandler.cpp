@@ -1,5 +1,4 @@
 #include <chrono>
-#include <mutex>
 #include <thread>
 #include <GWCA/GWCA.h>
 #include <GWCA/Managers/ItemMgr.h>
@@ -24,8 +23,14 @@ namespace gbr::InProcess {
 
     void DropsHandler::Listen() {
         bool waitingForCall = false;
+        bool pickingUp = false;
 
         while (true) {
+            if (pickingUp) {
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                pickingUp = false;
+            }
+
             if (!waitingForCall) {
                 waitingForCall = true;
 
@@ -33,18 +38,18 @@ namespace gbr::InProcess {
                     auto player = GW::Agents().GetPlayer();
 
                     if (player && !player->GetIsMoving()) {
-                        PickupNearbyGem();
+                        pickingUp = PickupNearbyGem();
                     }
 
                     waitingForCall = false;
                 });
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
 
-    void DropsHandler::PickupNearbyGem() {
+    bool DropsHandler::PickupNearbyGem() {
         auto player = GW::Agents().GetPlayer();
 
         if (player) {
@@ -57,26 +62,43 @@ namespace gbr::InProcess {
 
             if (agents.valid() && items.valid()) {
                 for (auto agent : agents) {
-                    if (agent && agent->GetIsItemType() && agent->pos.SquaredDistanceTo(pos) < nearbySq) {
+                    if (!agent)
+                        continue;
+
+                    if (agent->pos.SquaredDistanceTo(pos) > nearbySq)
+                        continue;
+
+                    if (agent->GetIsItemType()) {
                         auto item = items[agent->itemid];
 
-                        if (item && agent->Owner == 0 || agent->Owner == player->Id) {
+                        if (agent->Owner == player->Id) {
                             for (auto modelId : wantedModelIds) {
                                 if (item->ModelId == modelId) {
                                     if (agent->pos.SquaredDistanceTo(pos) < adjacentSq) {
                                         GW::Items().PickUpItem(item);
+                                        return true;
                                     }
                                     else {
                                         GW::Agents().Move(agent->pos);
+                                        return false;
                                     }
-
-                                    return;
                                 }
                             }
                         }
                     }
+                    else if (agent->GetIsSignpostType())
+                        if (agent->pos.SquaredDistanceTo(pos) < adjacentSq) {
+                            GW::Agents().GoSignpost(agent);
+                            return true;
+                        }
+                        else {
+                            GW::Agents().Move(agent->pos);
+                            return false;
+                        }
                 }
             }
         }
+
+        return false;
     }
 }

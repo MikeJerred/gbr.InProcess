@@ -8,7 +8,7 @@ namespace gbr::InProcess {
         static DWORD WINAPI ThreadEntry(LPVOID);
 
         void Listen();
-        static void PickupNearbyGem();
+        static bool PickupNearbyGem();
     private:
         static const std::initializer_list<int> wantedModelIds;
     };

@@ -12,6 +12,9 @@
     <Filter Include="DropsHandler">
       <UniqueIdentifier>{b63eed75-a373-4a51-bb45-aaa28aae4e52}</UniqueIdentifier>
     </Filter>
+    <Filter Include="EnemyHandler">
+      <UniqueIdentifier>{a70a4d87-89c0-48eb-bff7-8ae87bc99bad}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -24,6 +27,9 @@
     <ClCompile Include="DropsHandler\DropsHandler.cpp">
       <Filter>DropsHandler</Filter>
     </ClCompile>
+    <ClCompile Include="EnemyHandler\EnemyHandler.cpp">
+      <Filter>EnemyHandler</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TitleUpdater\TitleUpdater.h">
@@ -34,6 +40,9 @@
     </ClInclude>
     <ClInclude Include="DropsHandler\DropsHandler.h">
       <Filter>DropsHandler</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemyHandler\EnemyHandler.h">
+      <Filter>EnemyHandler</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
