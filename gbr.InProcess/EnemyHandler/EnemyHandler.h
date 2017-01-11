@@ -3,20 +3,28 @@
 #include <Windows.h>
 
 namespace gbr::InProcess {
-    enum class SpikerType {
-        None,
+    enum class PlayerType {
+        Unknown,
+        Tank,
+        Vor,
         ESurge,
-        Vor
+        Bonder,
+        Rez
     };
 
     class EnemyHandler {
     public:
         static DWORD WINAPI ThreadEntry(LPVOID);
 
-        EnemyHandler(SpikerType spikerType) : spikerType(spikerType) {};
+        EnemyHandler(PlayerType playerType) : playerType(playerType) {};
         void Listen();
         void SpikeTarget(GW::Agent* enemy);
+        void SendDialog(GW::Agent* npc);
     private:
-        SpikerType spikerType;
+        DWORD GetQuestTakeDialog(DWORD quest) { return (quest << 8) | 0x800001; };
+        DWORD GetQuestUpdateDialog(DWORD quest) { return (quest << 8) | 0x800004; };
+        DWORD GetQuestRewardDialog(DWORD quest) { return (quest << 8) | 0x800007; };
+
+        PlayerType playerType;
     };
 }
