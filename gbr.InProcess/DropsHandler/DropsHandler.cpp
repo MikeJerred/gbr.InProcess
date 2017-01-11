@@ -61,11 +61,10 @@ namespace gbr::InProcess {
             const float nearbySq = GW::Constants::Range::Nearby * GW::Constants::Range::Nearby;
 
             if (agents.valid() && items.valid()) {
-                for (auto agent : agents) {
-                    if (!agent)
-                        continue;
+                GW::Agent* chest = nullptr;
 
-                    if (agent->pos.SquaredDistanceTo(pos) > nearbySq)
+                for (auto agent : agents) {
+                    if (!agent || agent->pos.SquaredDistanceTo(pos) > nearbySq)
                         continue;
 
                     if (agent->GetIsItemType()) {
@@ -86,15 +85,21 @@ namespace gbr::InProcess {
                             }
                         }
                     }
-                    else if (agent->GetIsSignpostType())
-                        if (agent->pos.SquaredDistanceTo(pos) < adjacentSq) {
-                            GW::Agents().GoSignpost(agent);
-                            return true;
-                        }
-                        else {
-                            GW::Agents().Move(agent->pos);
-                            return false;
-                        }
+                    else if (agent->GetIsSignpostType()) {
+                        // prioritize picking up gems over opening chest
+                        chest = agent;
+                    }
+                }
+
+                if (chest) {
+                    if (chest->pos.SquaredDistanceTo(pos) < adjacentSq) {
+                        GW::Agents().GoSignpost(chest);
+                        return true;
+                    }
+                    else {
+                        GW::Agents().Move(chest->pos);
+                        return false;
+                    }
                 }
             }
         }
