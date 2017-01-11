@@ -69,7 +69,10 @@ namespace gbr::InProcess {
 
         while (pipeHandle != INVALID_HANDLE_VALUE) {
             if (ReadFile(pipeHandle, buffer, bufferSize, &bytesRead, NULL)) {
-                BaseCommand::ExecuteCommand((BaseCommand::BaseRequest*)buffer);
+                if (BaseCommand::ExecuteCommand((BaseCommand::BaseRequest*)buffer)) {
+                    Disconnect();
+                    return;
+                }
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(10));

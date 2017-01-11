@@ -1,10 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="TitleUpdater">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
     <Filter Include="CommandHandler">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
@@ -15,12 +11,12 @@
     <Filter Include="EnemyHandler">
       <UniqueIdentifier>{a70a4d87-89c0-48eb-bff7-8ae87bc99bad}</UniqueIdentifier>
     </Filter>
+    <Filter Include="BonderHandler">
+      <UniqueIdentifier>{dc351eac-35d7-43e5-9bcc-be26cffeaa81}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="TitleUpdater\TitleUpdater.cpp">
-      <Filter>TitleUpdater</Filter>
-    </ClCompile>
     <ClCompile Include="CommandHandler\CommandHandler.cpp">
       <Filter>CommandHandler</Filter>
     </ClCompile>
@@ -30,11 +26,11 @@
     <ClCompile Include="EnemyHandler\EnemyHandler.cpp">
       <Filter>EnemyHandler</Filter>
     </ClCompile>
+    <ClCompile Include="BonderHandler\BonderHandler.cpp">
+      <Filter>BonderHandler</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="TitleUpdater\TitleUpdater.h">
-      <Filter>TitleUpdater</Filter>
-    </ClInclude>
     <ClInclude Include="CommandHandler\CommandHandler.h">
       <Filter>CommandHandler</Filter>
     </ClInclude>
@@ -43,6 +39,9 @@
     </ClInclude>
     <ClInclude Include="EnemyHandler\EnemyHandler.h">
       <Filter>EnemyHandler</Filter>
+    </ClInclude>
+    <ClInclude Include="BonderHandler\BonderHandler.h">
+      <Filter>BonderHandler</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

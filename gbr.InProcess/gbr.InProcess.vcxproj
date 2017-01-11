@@ -114,11 +114,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BonderHandler\BonderHandler.cpp" />
     <ClCompile Include="CommandHandler\CommandHandler.cpp" />
     <ClCompile Include="DropsHandler\DropsHandler.cpp" />
     <ClCompile Include="EnemyHandler\EnemyHandler.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="TitleUpdater\TitleUpdater.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\gbr.Shared\gbr.Shared.vcxproj">
@@ -129,10 +129,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BonderHandler\BonderHandler.h" />
     <ClInclude Include="CommandHandler\CommandHandler.h" />
     <ClInclude Include="DropsHandler\DropsHandler.h" />
     <ClInclude Include="EnemyHandler\EnemyHandler.h" />
-    <ClInclude Include="TitleUpdater\TitleUpdater.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
