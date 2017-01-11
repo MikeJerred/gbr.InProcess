@@ -1,3 +1,6 @@
 gbr.InProcess/Debug/
 gbr.InProcess.VC.db
 gbr.InProcess.VC.VC.opendb
+gbr.Launcher/obj/
+gbr.Launcher/bin/
+Debug/
