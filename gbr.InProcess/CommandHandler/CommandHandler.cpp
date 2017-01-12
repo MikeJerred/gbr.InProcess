@@ -17,23 +17,32 @@ namespace gbr::InProcess {
         auto pipeName = std::wstring(L"\\\\.\\pipe\\gbr_") + charName;
         auto instance = CommandHandler(pipeName);
 
-        instance.Connect();
+        while (!instance.Connect()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
 
-        try {
-            instance.Listen();
+        auto listenThread = std::thread(
+            [](CommandHandler instance) {
+                try {
+                    instance.Listen();
+                }
+                catch (...) {
+                    instance.Disconnect();
+                }
+            },
+            instance);
+
+        while (instance.pipeHandle != INVALID_HANDLE_VALUE) {
+            instance.Connect();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        catch (...) {
-            instance.Disconnect();
-        }
+
+        listenThread.join();
 
         FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
     }
 
-    CommandHandler::~CommandHandler() {
-        Disconnect();
-    }
-
-    void CommandHandler::Connect() {
+    CommandHandler::CommandHandler(std::wstring pipeName) : pipeName(pipeName), pipeHandle(INVALID_HANDLE_VALUE) {
         pipeHandle = CreateNamedPipeW(
             pipeName.c_str(),
             PIPE_ACCESS_DUPLEX,
@@ -47,12 +56,14 @@ namespace gbr::InProcess {
         if (pipeHandle == INVALID_HANDLE_VALUE) {
             throw std::exception("Failed to create pipe. Error code: %d", GetLastError());
         }
+    }
 
-        auto connected = ConnectNamedPipe(pipeHandle, nullptr) || GetLastError() == ERROR_PIPE_CONNECTED;
+    CommandHandler::~CommandHandler() {
+        Disconnect();
+    }
 
-        if (!connected) {
-            CloseHandle(pipeHandle);
-        }
+    bool CommandHandler::Connect() {
+        return ConnectNamedPipe(pipeHandle, nullptr) || GetLastError() == ERROR_PIPE_CONNECTED;
     }
 
     void CommandHandler::Disconnect() {

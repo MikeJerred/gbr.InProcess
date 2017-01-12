@@ -9,10 +9,10 @@ namespace gbr::InProcess {
         HANDLE pipeHandle;
         static const DWORD bufferSize = 0x1000;
 
-        CommandHandler(std::wstring pipeName) : pipeName(pipeName), pipeHandle(INVALID_HANDLE_VALUE) {};
+        CommandHandler(std::wstring pipeName);
         ~CommandHandler();
 
-        void Connect();
+        bool Connect();
         void Disconnect();
         void Listen();
     public:
