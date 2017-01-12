@@ -133,10 +133,9 @@ namespace gbr::InProcess {
     }
 
     void EnemyHandler::JumpToTarget(GW::Agent* target) {
-        auto skills = GW::Skillbar::GetPlayerSkillbar().Skills;
         auto ee = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Ebon_Escape);
 
-        if (ee.GetRecharge() == 0) {
+        if (ee.SkillId > 0 && ee.GetRecharge() == 0 && !GW::Skillbar::GetPlayerSkillbar().Casting) {
             GW::Skillbarmgr().UseSkill(GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Ebon_Escape), target->Id);
         }
         else {
@@ -152,7 +151,7 @@ namespace gbr::InProcess {
         }
         else {
             auto ua = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Unyielding_Aura);
-            if (ua.SkillId > 0 && ua.GetRecharge() == 0)
+            if (ua.SkillId > 0 && ua.GetRecharge() == 0 && !GW::Skillbar::GetPlayerSkillbar().Casting)
                 GW::Skillbarmgr().UseSkill(GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Unyielding_Aura));
 
             return false;
@@ -209,55 +208,45 @@ namespace gbr::InProcess {
         auto s = L"Target: " + std::to_wstring(offTarget->Id) + L" " + ModelIdToString(offTarget->PlayerNumber);
         GW::Chat().SendChat(s.c_str(), L'#');
 
-        auto vor = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Visions_of_Regret);
-        if (vor.GetRecharge() == 0) {
-            auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Visions_of_Regret);
-            if (slot != -1) {
-                GW::Skillbarmgr().UseSkill(slot, target->Id);
+        if (target->HP < 0.5f) {
+            if (TryUseSkill(GW::Constants::SkillID::Finish_Him, target->Id))
                 return;
-            }
+        }
+
+        if (offTarget->HP < 0.5f) {
+            if (TryUseSkill(GW::Constants::SkillID::Finish_Him, offTarget->Id))
+                return;
+        }
+
+        if (TryUseSkill(GW::Constants::SkillID::Visions_of_Regret, target->Id))
+            return;
+
+        if (target->Skill > 0) {
+            if (TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
+                return;
+        }
+
+        if (offTarget->Skill > 0) {
+            if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
+                return;
         }
 
         if (offTarget->GetIsHexed()) {
-            auto shatter = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Shatter_Delusions);
-            if (shatter.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Shatter_Delusions);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, offTarget->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, offTarget->Id))
+                return;
         }
 
         if (target->GetIsHexed() || target->GetIsEnchanted()) {
-            auto signet = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Unnatural_Signet);
-            if (signet.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Unnatural_Signet);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, target->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
+                return;
         }
         else if (offTarget->GetIsHexed() || offTarget->GetIsEnchanted()) {
-            auto signet = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Unnatural_Signet);
-            if (signet.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Unnatural_Signet);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, offTarget->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, offTarget->Id))
+                return;
         }
 
-        auto overload = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Overload);
-        if (overload.GetRecharge() == 0) {
-            auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Overload);
-            if (slot != -1) {
-                GW::Skillbarmgr().UseSkill(slot, offTarget->Id);
-                return;
-            }
-        }
+        if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
+            return;
     }
 
     void EnemyHandler::SpikeAsESurge(GW::Agent* target, unsigned int n) {
@@ -277,55 +266,35 @@ namespace gbr::InProcess {
         auto s = L"Target: " + std::to_wstring(offTarget->Id) + L" " + ModelIdToString(offTarget->PlayerNumber);
         GW::Chat().SendChat(s.c_str(), L'#');
 
-        auto esurge = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Energy_Surge);
-        if (esurge.GetRecharge() == 0) {
-            auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Energy_Surge);
-            if (slot != -1) {
-                GW::Skillbarmgr().UseSkill(slot, offTarget->Id);
+        if (TryUseSkill(GW::Constants::SkillID::Energy_Surge, offTarget->Id))
+            return;
+
+        if (target->Skill > 0) {
+            if (TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
                 return;
-            }
+        }
+
+        if (offTarget->Skill > 0) {
+            if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
+                return;
         }
 
         if (offTarget->GetIsHexed()) {
-            auto shatter = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Shatter_Delusions);
-            if (shatter.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Shatter_Delusions);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, offTarget->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, offTarget->Id))
+                return;
         }
 
         if (target->GetIsHexed() || target->GetIsEnchanted()) {
-            auto signet = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Unnatural_Signet);
-            if (signet.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Unnatural_Signet);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, target->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
+                return;
         }
         else if (offTarget->GetIsHexed() || offTarget->GetIsEnchanted()) {
-            auto signet = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Unnatural_Signet);
-            if (signet.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Unnatural_Signet);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, offTarget->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, offTarget->Id))
+                return;
         }
 
-        auto overload = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Overload);
-        if (overload.GetRecharge() == 0) {
-            auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Overload);
-            if (slot != -1) {
-                GW::Skillbarmgr().UseSkill(slot, offTarget->Id);
-                return;
-            }
-        }
+        if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
+            return;
     }
 
     void EnemyHandler::SpikeAsRez(GW::Agent* target) {
@@ -342,65 +311,49 @@ namespace gbr::InProcess {
         GW::Chat().SendChat(s.c_str(), L'#');
 
         if (HasHighAttackRate(target)) {
-            auto wandering = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Wandering_Eye);
-            if (wandering.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Wandering_Eye);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, target->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Wandering_Eye, target->Id))
+                return;
         }
 
-        auto wandering = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Wandering_Eye);
-        if (wandering.GetRecharge() == 0) {
-            auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Wandering_Eye);
-            if (slot != -1) {
-                GW::Skillbarmgr().UseSkill(slot, offTarget->Id);
+        if (TryUseSkill(GW::Constants::SkillID::Wandering_Eye, offTarget->Id))
+            return;
+
+        if (target->Skill > 0) {
+            if (TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
                 return;
-            }
+        }
+
+        if (offTarget->Skill > 0) {
+            if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
+                return;
         }
 
         if (target->GetIsHexed() || target->GetIsEnchanted()) {
-            auto signet = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Unnatural_Signet);
-            if (signet.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Unnatural_Signet);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, target->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
+                return;
         }
         else if (offTarget->GetIsHexed() || offTarget->GetIsEnchanted()) {
-            auto signet = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Unnatural_Signet);
-            if (signet.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Unnatural_Signet);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, offTarget->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, offTarget->Id))
+                return;
         }
 
-        auto overload = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Overload);
-        if (overload.GetRecharge() == 0) {
-            auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Overload);
-            if (slot != -1) {
-                GW::Skillbarmgr().UseSkill(slot, target->Id);
-                return;
-            }
-        }
+        if (TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
+            return;
 
         if (target->GetIsHexed()) {
-            auto shatter = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Shatter_Delusions);
-            if (shatter.GetRecharge() == 0) {
-                auto slot = GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Shatter_Delusions);
-                if (slot != -1) {
-                    GW::Skillbarmgr().UseSkill(slot, target->Id);
-                    return;
-                }
-            }
+            if (TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, target->Id))
+                return;
         }
+    }
+
+    bool EnemyHandler::TryUseSkill(GW::Constants::SkillID skillId, DWORD targetId) {
+        auto skill = GW::Skillbar::GetPlayerSkillbar().GetSkillById(skillId);
+        if (skill.SkillId > 0 && skill.GetRecharge() == 0 && !GW::Skillbar::GetPlayerSkillbar().Casting) {
+            GW::Skillbarmgr().UseSkill(GW::Skillbarmgr().GetSkillSlot(skillId), targetId);
+            return true;
+        }
+
+        return false;
     }
 
     std::vector<GW::Agent*> EnemyHandler::GetOtherEnemiesInRange(GW::Agent* target, float rangeSq, std::function<bool(GW::Agent*, GW::Agent*)> sort /*= nullptr*/) {

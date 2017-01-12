@@ -30,6 +30,7 @@ namespace gbr::InProcess {
         void SpikeAsVoR(GW::Agent* target);
         void SpikeAsESurge(GW::Agent* target, unsigned int n);
         void SpikeAsRez(GW::Agent* target);
+        bool TryUseSkill(GW::Constants::SkillID skillId, DWORD targetId);
         std::vector<GW::Agent*> GetOtherEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);
         bool HasHighEnergy(GW::Agent* agent);
         bool HasHighAttackRate(GW::Agent* agent);
