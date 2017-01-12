@@ -54,9 +54,6 @@ namespace gbr::InProcess {
                 if (!player || player->GetIsDead() || !agents.valid())
                     return;
 
-                const float adjacentSq = GW::Constants::Range::Adjacent * GW::Constants::Range::Adjacent;
-                const float spellcastSq = GW::Constants::Range::Spellcast * GW::Constants::Range::Spellcast;
-
                 auto id = gbr::Shared::Commands::AggressiveMoveTo::GetTargetAgentId();
                 if (id) {
                     auto agent = agents[id];
@@ -69,7 +66,7 @@ namespace gbr::InProcess {
                         if (!agent->GetIsDead()) {
                             if (agent->Allegiance == 3) {
                                 // kill the enemy
-                                if (agent->pos.SquaredDistanceTo(player->pos) < spellcastSq) {
+                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
                                     GW::Agents().Move(player->pos); // stop moving
                                     SpikeTarget(agent);
                                 }
@@ -80,12 +77,12 @@ namespace gbr::InProcess {
                                 return;
                             }
                             else if (agent->IsNPC()) {
-                                if (agent->pos.SquaredDistanceTo(player->pos) < adjacentSq) {
+                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Adjacent) {
                                     GW::Agents().GoNPC(agent);
                                     SendDialog(agent);
                                     // after here we fall out of the if-else scopes and erase the target Id
                                 }
-                                else if (agent->pos.SquaredDistanceTo(player->pos) < spellcastSq) {
+                                else if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
                                     JumpToTarget(agent);
                                     return;
                                 }
@@ -96,10 +93,10 @@ namespace gbr::InProcess {
                             }
                             else if (agent->IsPlayer()) {
                                 // jump to target
-                                if (agent->pos.SquaredDistanceTo(player->pos) < adjacentSq) {
+                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Adjacent) {
                                     // already at target, so fall through and set target Id to 0
                                 }
-                                if (agent->pos.SquaredDistanceTo(player->pos) < spellcastSq) {
+                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
                                     JumpToTarget(agent);
                                     return;
                                 }
@@ -114,7 +111,7 @@ namespace gbr::InProcess {
                         else if (agent->IsPlayer()) {
                             // rez player
                             if (playerType == PlayerType::Rez) {
-                                if (agent->pos.SquaredDistanceTo(player->pos) < spellcastSq) {
+                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
                                     if (!RessurectTarget(agent))
                                         return;
                                     // after here we fall out of the if-else scopes and erase the target Id
@@ -176,15 +173,13 @@ namespace gbr::InProcess {
         if (!player || !agents.valid())
             return;
 
-        const auto nearbySq = GW::Constants::Range::Nearby * GW::Constants::Range::Nearby;
-
         std::vector<GW::Agent*> enemiesToSpike;
         for (auto agent : agents) {
             if (agent
                 && !agent->GetIsDead()
                 && agent->Allegiance == 3
                 && !agent->GetIsSpawned()
-                && agent->pos.SquaredDistanceTo(target->pos) < nearbySq) {
+                && agent->pos.SquaredDistanceTo(target->pos) < GW::Constants::SqrRange::Nearby) {
 
                 enemiesToSpike.push_back(agent);
             }
@@ -208,11 +203,11 @@ namespace gbr::InProcess {
     }
 
     void EnemyHandler::SpikeAsVoR(GW::Agent* target) {
-        auto otherAdjacentEnemies = GetOtherEnemiesInRange(target, GW::Constants::Range::Adjacent);
+        auto otherAdjacentEnemies = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent);
         auto offTarget = otherAdjacentEnemies.size() > 0 ? otherAdjacentEnemies[0] : target;
 
-        auto s = std::wstring(L"<c=#00ccff>Target</c>: ") + std::to_wstring(offTarget->Id) + ModelIdToString(offTarget->PlayerNumber);
-        GW::Chat().WriteChat(GW::Channel::CHANNEL_GWCA3, s.c_str());
+        auto s = L"Target: " + std::to_wstring(offTarget->Id) + L" " + ModelIdToString(offTarget->PlayerNumber);
+        GW::Chat().SendChat(s.c_str(), L'#');
 
         auto vor = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Visions_of_Regret);
         if (vor.GetRecharge() == 0) {
@@ -266,7 +261,7 @@ namespace gbr::InProcess {
     }
 
     void EnemyHandler::SpikeAsESurge(GW::Agent* target, unsigned int n) {
-        auto otherAdjacentEnemies = GetOtherEnemiesInRange(target, GW::Constants::Range::Adjacent, [&](GW::Agent* a, GW::Agent* b) {
+        auto otherAdjacentEnemies = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent, [&](GW::Agent* a, GW::Agent* b) {
             if ((HasHighEnergy(a) && !HasHighEnergy(b)) || (!HasHighEnergy(a) && HasHighEnergy(b))) {
                 return HasHighEnergy(a);
             }
@@ -279,8 +274,8 @@ namespace gbr::InProcess {
                 ? otherAdjacentEnemies[(n % otherAdjacentEnemies.size())]
                 : target;
 
-        auto s = std::wstring(L"<c=#00ccff>Target</c>: ") + std::to_wstring(offTarget->Id) + ModelIdToString(offTarget->PlayerNumber);
-        GW::Chat().WriteChat(GW::Channel::CHANNEL_GWCA3, s.c_str());
+        auto s = L"Target: " + std::to_wstring(offTarget->Id) + L" " + ModelIdToString(offTarget->PlayerNumber);
+        GW::Chat().SendChat(s.c_str(), L'#');
 
         auto esurge = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Energy_Surge);
         if (esurge.GetRecharge() == 0) {
@@ -334,7 +329,7 @@ namespace gbr::InProcess {
     }
 
     void EnemyHandler::SpikeAsRez(GW::Agent* target) {
-        auto otherAdjacentEnemies = GetOtherEnemiesInRange(target, GW::Constants::Range::Adjacent, [&](GW::Agent* a, GW::Agent* b) {
+        auto otherAdjacentEnemies = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent, [&](GW::Agent* a, GW::Agent* b) {
             if ((HasHighAttackRate(a) && !HasHighAttackRate(b)) || (!HasHighAttackRate(a) && HasHighAttackRate(b))) {
                 return HasHighAttackRate(a);
             }
@@ -343,8 +338,8 @@ namespace gbr::InProcess {
         });
         auto offTarget = otherAdjacentEnemies.size() > 0 ? otherAdjacentEnemies[0] : target;
 
-        auto s = std::wstring(L"<c=#00ccff>Target</c>: ") + std::to_wstring(offTarget->Id) + ModelIdToString(offTarget->PlayerNumber);
-        GW::Chat().WriteChat(GW::Channel::CHANNEL_GWCA3, s.c_str());
+        auto s = L"Target: " + std::to_wstring(offTarget->Id) + L" " + ModelIdToString(offTarget->PlayerNumber);
+        GW::Chat().SendChat(s.c_str(), L'#');
 
         if (HasHighAttackRate(target)) {
             auto wandering = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Wandering_Eye);
@@ -408,11 +403,10 @@ namespace gbr::InProcess {
         }
     }
 
-    std::vector<GW::Agent*> EnemyHandler::GetOtherEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort /*= nullptr*/) {
+    std::vector<GW::Agent*> EnemyHandler::GetOtherEnemiesInRange(GW::Agent* target, float rangeSq, std::function<bool(GW::Agent*, GW::Agent*)> sort /*= nullptr*/) {
         std::vector<GW::Agent*> enemies;
 
         auto playerPos = GW::Agents().GetPlayer()->pos;
-        auto rangeSq = range * range;
         for (auto agent : GW::Agents().GetAgentArray()) {
             if (agent
                 && agent->Id != target->Id
@@ -473,6 +467,7 @@ namespace gbr::InProcess {
         case GW::Constants::ModelID::DoA::StygianHorror:
         case GW::Constants::ModelID::DoA::StygianLordDerv:
         case GW::Constants::ModelID::DoA::StygianLordRanger:
+        //case GW::Constants::ModelID::DoA::DementiaTitan
             return true;
         default:
             return false;
