@@ -14,15 +14,19 @@ namespace gbr::InProcess {
 
     class EnemyHandler {
     public:
+        static EnemyHandler* instance;
         static DWORD WINAPI ThreadEntry(LPVOID);
 
-        EnemyHandler(PlayerType playerType) : playerType(playerType) {};
-        void Listen();
+        EnemyHandler(PlayerType playerType);
+        ~EnemyHandler();
         void SpikeTarget(GW::Agent* target);
         void JumpToTarget(GW::Agent* target);
         bool RessurectTarget(GW::Agent* target);
         void SendDialog(GW::Agent* npc);
+
     private:
+        GUID hookGuid;
+
         DWORD GetQuestTakeDialog(DWORD quest) { return (quest << 8) | 0x800001; };
         DWORD GetQuestUpdateDialog(DWORD quest) { return (quest << 8) | 0x800004; };
         DWORD GetQuestRewardDialog(DWORD quest) { return (quest << 8) | 0x800007; };

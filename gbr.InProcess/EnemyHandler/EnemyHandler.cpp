@@ -12,6 +12,8 @@
 #include "EnemyHandler.h"
 
 namespace gbr::InProcess {
+    EnemyHandler* EnemyHandler::instance = nullptr;
+
     DWORD WINAPI EnemyHandler::ThreadEntry(LPVOID) {
         PlayerType type;
         auto skills = GW::Skillbar::GetPlayerSkillbar().Skills;
@@ -38,98 +40,96 @@ namespace gbr::InProcess {
             break;
         }
 
-        auto instance = EnemyHandler(type);
-
-        instance.Listen();
+        instance = new EnemyHandler(type);
 
         return TRUE;
     }
 
-    void EnemyHandler::Listen() {
-        while (true) {
-            GW::Gamethread().Enqueue([&]() {
-                auto player = GW::Agents().GetPlayer();
-                auto agents = GW::Agents().GetAgentArray();
+    EnemyHandler::EnemyHandler(PlayerType playerType) : playerType(playerType) {
+        hookGuid = GW::Gamethread().AddPermanentCall([&]() {
+            auto player = GW::Agents().GetPlayer();
+            auto agents = GW::Agents().GetAgentArray();
 
-                if (!player || player->GetIsDead() || !agents.valid())
-                    return;
+            if (!player || player->GetIsDead() || !agents.valid())
+                return;
 
-                auto id = gbr::Shared::Commands::AggressiveMoveTo::GetTargetAgentId();
-                if (id) {
-                    auto agent = agents[id];
-                    if (agent) {
-                        if (agent->GetIsItemType()) {
-                            GW::Agents().Move(agent->pos);
+            auto id = gbr::Shared::Commands::AggressiveMoveTo::GetTargetAgentId();
+            if (id) {
+                auto agent = agents[id];
+                if (agent) {
+                    if (agent->GetIsItemType()) {
+                        GW::Agents().Move(agent->pos);
+                        return;
+                    }
+
+                    if (!agent->GetIsDead()) {
+                        if (agent->Allegiance == 3) {
+                            // kill the enemy
+                            if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                                GW::Agents().Move(player->pos); // stop moving
+                                SpikeTarget(agent);
+                            }
+                            else {
+                                GW::Agents().Move(agent->pos);
+                            }
+
                             return;
                         }
-
-                        if (!agent->GetIsDead()) {
-                            if (agent->Allegiance == 3) {
-                                // kill the enemy
-                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                                    GW::Agents().Move(player->pos); // stop moving
-                                    SpikeTarget(agent);
-                                }
-                                else {
-                                    GW::Agents().Move(agent->pos);
-                                }
-
+                        else if (agent->IsNPC()) {
+                            if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Adjacent) {
+                                GW::Agents().GoNPC(agent);
+                                SendDialog(agent);
+                                // after here we fall out of the if-else scopes and erase the target Id
+                            }
+                            else if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                                JumpToTarget(agent);
                                 return;
                             }
-                            else if (agent->IsNPC()) {
-                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Adjacent) {
-                                    GW::Agents().GoNPC(agent);
-                                    SendDialog(agent);
-                                    // after here we fall out of the if-else scopes and erase the target Id
-                                }
-                                else if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                                    JumpToTarget(agent);
-                                    return;
-                                }
-                                else {
-                                    GW::Agents().GoNPC(agent);
-                                    return;
-                                }
+                            else {
+                                GW::Agents().GoNPC(agent);
+                                return;
                             }
-                            else if (agent->IsPlayer()) {
-                                // jump to target
-                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Adjacent) {
-                                    // already at target, so fall through and set target Id to 0
-                                }
-                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                                    JumpToTarget(agent);
-                                    return;
-                                }
-                                else {
-                                    GW::Agents().Move(agent->pos);
-                                    return;
-                                }
-                            }
-
-                            // should never get here: any agent that is alive should be either an enemy, an NPC, or a player
                         }
                         else if (agent->IsPlayer()) {
-                            // rez player
-                            if (playerType == PlayerType::Rez) {
-                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                                    if (!RessurectTarget(agent))
-                                        return;
-                                    // after here we fall out of the if-else scopes and erase the target Id
-                                }
-                                else {
-                                    GW::Agents().Move(agent->pos);
+                            // jump to target
+                            if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Adjacent) {
+                                // already at target, so fall through and set target Id to 0
+                            }
+                            if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                                JumpToTarget(agent);
+                                return;
+                            }
+                            else {
+                                GW::Agents().Move(agent->pos);
+                                return;
+                            }
+                        }
+
+                        // should never get here: any agent that is alive should be either an enemy, an NPC, or a player
+                    }
+                    else if (agent->IsPlayer()) {
+                        // rez player
+                        if (playerType == PlayerType::Rez) {
+                            if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                                if (!RessurectTarget(agent))
                                     return;
-                                }
+                                // after here we fall out of the if-else scopes and erase the target Id
+                            }
+                            else {
+                                GW::Agents().Move(agent->pos);
+                                return;
                             }
                         }
                     }
-
-                    gbr::Shared::Commands::AggressiveMoveTo::SetTargetAgentId(0);
                 }
-            });
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(250));
-        }
+                gbr::Shared::Commands::AggressiveMoveTo::SetTargetAgentId(0);
+            }
+        });
+    }
+
+    EnemyHandler::~EnemyHandler() {
+        GW::Gamethread().RemovePermanentCall(hookGuid);
     }
 
     void EnemyHandler::JumpToTarget(GW::Agent* target) {
@@ -269,13 +269,21 @@ namespace gbr::InProcess {
         if (TryUseSkill(GW::Constants::SkillID::Energy_Surge, offTarget->Id))
             return;
 
-        if (target->Skill > 0) {
-            if (TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
-                return;
-        }
+        auto overloadTargets = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent, [&](GW::Agent* a, GW::Agent* b) {
+            if ((a->Skill > 0 && b->Skill == 0) || (a->Skill == 0 && b->Skill > 0)) {
+                return a->Skill > 0;
+            }
 
-        if (offTarget->Skill > 0) {
-            if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
+            return a->Id < b->Id;
+        });
+        auto overloadTarget = overloadTargets.size() > n
+            ? overloadTargets[n]
+            : (overloadTargets.size() > 0)
+                ? overloadTargets[(n % overloadTargets.size())]
+                : offTarget;
+
+        if (overloadTarget->Skill > 0) {
+            if (TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
                 return;
         }
 
