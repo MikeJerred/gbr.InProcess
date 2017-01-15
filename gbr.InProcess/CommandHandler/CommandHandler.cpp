@@ -17,24 +17,13 @@ namespace gbr::InProcess {
         auto pipeName = std::wstring(L"\\\\.\\pipe\\gbr_") + charName;
         auto instance = CommandHandler(pipeName);
 
-        while (!instance.Connect()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
+        instance.Connect();
 
-        auto listenThread = std::thread(
-            [](CommandHandler instance) {
-                try {
-                    instance.Listen();
-                }
-                catch (...) {
-                    instance.Disconnect();
-                }
-            },
-            instance);
+        auto listenThread = std::thread([&]() { instance.Listen(); });
 
         while (instance.pipeHandle != INVALID_HANDLE_VALUE) {
             instance.Connect();
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
         listenThread.join();
@@ -42,7 +31,7 @@ namespace gbr::InProcess {
         FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
     }
 
-    CommandHandler::CommandHandler(std::wstring pipeName) : pipeName(pipeName), pipeHandle(INVALID_HANDLE_VALUE) {
+    CommandHandler::CommandHandler(std::wstring pipeName) : pipeName(pipeName) {
         pipeHandle = CreateNamedPipeW(
             pipeName.c_str(),
             PIPE_ACCESS_DUPLEX,

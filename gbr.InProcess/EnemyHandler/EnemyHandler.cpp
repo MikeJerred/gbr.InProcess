@@ -9,9 +9,12 @@
 #include <GWCA/Managers/StoCMgr.h>
 #include <gbr.Shared/Commands/AggressiveMoveTo.h>
 
+#include "../Utilities/SkillUtility.h"
 #include "EnemyHandler.h"
 
 namespace gbr::InProcess {
+    using SkillUtility = Utilities::SkillUtility;
+
     EnemyHandler* EnemyHandler::instance = nullptr;
 
     DWORD WINAPI EnemyHandler::ThreadEntry(LPVOID) {
@@ -40,13 +43,40 @@ namespace gbr::InProcess {
             break;
         }
 
-        instance = new EnemyHandler(type);
+        auto loginNumber = GW::Agents().GetPlayer()->LoginNumber;
+        auto charName = GW::Agents().GetPlayerNameByLoginNumber(loginNumber);
+
+        int n = 0;
+        if (charName == L"W T F Force") {
+            n = 0;
+        }
+        else if (charName == L"Callisto Delta") {
+            n = 1;
+        }
+        else if (charName == L"Bellatrix Beta") {
+            n = 2;
+        }
+        else if (charName == L"Marianne Gamma") {
+            n = 3;
+        }
+
+        instance = new EnemyHandler(type, n);
 
         return TRUE;
     }
 
-    EnemyHandler::EnemyHandler(PlayerType playerType) : playerType(playerType) {
+    EnemyHandler::EnemyHandler(PlayerType playerType, int esurgeNumber) : playerType(playerType), esurgeNumber(esurgeNumber) {
+        static long long sleepUntil = 0;
+
         hookGuid = GW::Gamethread().AddPermanentCall([&]() {
+            long long currentTime = GetTickCount();
+
+            if ((sleepUntil - currentTime) > 0) {
+                return;
+            }
+
+            sleepUntil = currentTime + 10;
+
             auto player = GW::Agents().GetPlayer();
             auto agents = GW::Agents().GetAgentArray();
 
@@ -59,29 +89,30 @@ namespace gbr::InProcess {
                 if (agent) {
                     if (agent->GetIsItemType()) {
                         GW::Agents().Move(agent->pos);
-                        return;
                     }
-
-                    if (!agent->GetIsDead()) {
+                    else if (!agent->GetIsDead()) {
                         if (agent->Allegiance == 3) {
                             // kill the enemy
-                            if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                                GW::Agents().Move(player->pos); // stop moving
-                                SpikeTarget(agent);
-                            }
-                            else {
-                                GW::Agents().Move(agent->pos);
-                            }
+                            if (playerType != PlayerType::Bonder) {
+                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                                    GW::Agents().Move(player->pos); // stop moving
+                                    SpikeTarget(agent);
+                                }
+                                else {
+                                    GW::Agents().Move(agent->pos);
+                                }
 
-                            return;
+                                return;
+                            }
                         }
                         else if (agent->IsNPC()) {
                             if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Adjacent) {
+                                AcceptNextDialog();
                                 GW::Agents().GoNPC(agent);
-                                SendDialog(agent);
                                 // after here we fall out of the if-else scopes and erase the target Id
                             }
                             else if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                                AcceptNextDialog();
                                 JumpToTarget(agent);
                                 return;
                             }
@@ -133,13 +164,8 @@ namespace gbr::InProcess {
     }
 
     void EnemyHandler::JumpToTarget(GW::Agent* target) {
-        auto ee = GW::Skillbar::GetPlayerSkillbar().GetSkillById(GW::Constants::SkillID::Ebon_Escape);
-
-        if (ee.SkillId > 0 && ee.GetRecharge() == 0 && !GW::Skillbar::GetPlayerSkillbar().Casting) {
-            GW::Skillbarmgr().UseSkill(GW::Skillbarmgr().GetSkillSlot(GW::Constants::SkillID::Ebon_Escape), target->Id);
-        }
-        else {
-            GW::Agents().Move(target->pos);
+        if (!SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, target->Id)) {
+            GW::Agents().GoNPC(target);
         }
     }
 
@@ -158,150 +184,119 @@ namespace gbr::InProcess {
         }
     }
 
-    void EnemyHandler::SendDialog(GW::Agent* npc) {
-        GW::StoC().AddSingleGameServerEvent<GW::Packet::StoC::P114_DialogButton>([](GW::Packet::StoC::P114_DialogButton* packet) {
-            GW::Agents().Dialog(packet->dialog_id);
-            return false;
-        });
+    void EnemyHandler::AcceptNextDialog() {
+        static bool queued = false;
+        if (!queued) {
+            queued = true;
+            GW::StoC().AddSingleGameServerEvent<GW::Packet::StoC::P114_DialogButton>([](GW::Packet::StoC::P114_DialogButton* packet) {
+                queued = false;
+                GW::Agents().Dialog(packet->dialog_id);
+                return false;
+            });
+        }
     }
 
     void EnemyHandler::SpikeTarget(GW::Agent* target) {
-        auto player = GW::Agents().GetPlayer();
-        auto agents = GW::Agents().GetAgentArray();
-
-        if (!player || !agents.valid())
-            return;
-
-        std::vector<GW::Agent*> enemiesToSpike;
-        for (auto agent : agents) {
-            if (agent
-                && !agent->GetIsDead()
-                && agent->Allegiance == 3
-                && !agent->GetIsSpawned()
-                && agent->pos.SquaredDistanceTo(target->pos) < GW::Constants::SqrRange::Nearby) {
-
-                enemiesToSpike.push_back(agent);
-            }
-        }
-
-        switch (playerType) {
-        case PlayerType::Vor:
-            SpikeAsVoR(target);
-            break;
-        case PlayerType::ESurge:
-        {
-            auto loginNumber = GW::Agents().GetPlayer()->LoginNumber;
-            int n = 1 + (loginNumber % 4);
-            SpikeAsESurge(target, n);
-            break;
-        }
-        case PlayerType::Rez:
-            SpikeAsRez(target);
-            break;
-        }
-    }
-
-    void EnemyHandler::SpikeAsVoR(GW::Agent* target) {
-        auto otherAdjacentEnemies = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent);
-        auto offTarget = otherAdjacentEnemies.size() > 0 ? otherAdjacentEnemies[0] : target;
-
-        auto s = L"Target: " + std::to_wstring(offTarget->Id) + L" " + ModelIdToString(offTarget->PlayerNumber);
-        GW::Chat().SendChat(s.c_str(), L'#');
-
-        if (target->HP < 0.5f) {
-            if (TryUseSkill(GW::Constants::SkillID::Finish_Him, target->Id))
-                return;
-        }
-
-        if (offTarget->HP < 0.5f) {
-            if (TryUseSkill(GW::Constants::SkillID::Finish_Him, offTarget->Id))
-                return;
-        }
-
-        if (TryUseSkill(GW::Constants::SkillID::Visions_of_Regret, target->Id))
-            return;
-
-        if (target->Skill > 0) {
-            if (TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
-                return;
-        }
-
-        if (offTarget->Skill > 0) {
-            if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
-                return;
-        }
-
-        if (offTarget->GetIsHexed()) {
-            if (TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, offTarget->Id))
-                return;
-        }
-
-        if (target->GetIsHexed() || target->GetIsEnchanted()) {
-            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
-                return;
-        }
-        else if (offTarget->GetIsHexed() || offTarget->GetIsEnchanted()) {
-            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, offTarget->Id))
-                return;
-        }
-
-        if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
-            return;
-    }
-
-    void EnemyHandler::SpikeAsESurge(GW::Agent* target, unsigned int n) {
-        auto otherAdjacentEnemies = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent, [&](GW::Agent* a, GW::Agent* b) {
-            if ((HasHighEnergy(a) && !HasHighEnergy(b)) || (!HasHighEnergy(a) && HasHighEnergy(b))) {
-                return HasHighEnergy(a);
-            }
-
-            return a->Id < b->Id;
-        });
-        auto offTarget = otherAdjacentEnemies.size() > n
-            ? otherAdjacentEnemies[n]
-            : (otherAdjacentEnemies.size() > 0)
-                ? otherAdjacentEnemies[(n % otherAdjacentEnemies.size())]
-                : target;
-
-        auto s = L"Target: " + std::to_wstring(offTarget->Id) + L" " + ModelIdToString(offTarget->PlayerNumber);
-        GW::Chat().SendChat(s.c_str(), L'#');
-
-        if (TryUseSkill(GW::Constants::SkillID::Energy_Surge, offTarget->Id))
-            return;
-
-        auto overloadTargets = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent, [&](GW::Agent* a, GW::Agent* b) {
+        auto overloadTargets = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent, [](GW::Agent* a, GW::Agent* b) {
             if ((a->Skill > 0 && b->Skill == 0) || (a->Skill == 0 && b->Skill > 0)) {
                 return a->Skill > 0;
             }
 
             return a->Id < b->Id;
         });
-        auto overloadTarget = overloadTargets.size() > n
-            ? overloadTargets[n]
-            : (overloadTargets.size() > 0)
-                ? overloadTargets[(n % overloadTargets.size())]
-                : offTarget;
 
-        if (overloadTarget->Skill > 0) {
-            if (TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
+        GW::Agent* esurgeOverloadTarget = overloadTargets.size() > esurgeNumber ? overloadTargets[esurgeNumber] : target;
+        GW::Agent* vorOverloadTarget = overloadTargets.size() > 4 ? overloadTargets[4] : target;
+
+        switch (playerType) {
+        case PlayerType::Vor:
+            SpikeAsVoR(target, vorOverloadTarget);
+            break;
+        case PlayerType::ESurge:
+        {
+            SpikeAsESurge(target, esurgeNumber, esurgeOverloadTarget);
+            break;
+        }
+        case PlayerType::Rez:
+            //SpikeAsRez(target);
+            break;
+        }
+    }
+
+    void EnemyHandler::SpikeAsVoR(GW::Agent* target, GW::Agent* overloadTarget) {
+        if (target->HP < 0.5f) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Finish_Him, target->Id))
                 return;
         }
 
-        if (offTarget->GetIsHexed()) {
-            if (TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, offTarget->Id))
+        if (overloadTarget->HP < 0.5f) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Finish_Him, overloadTarget->Id))
+                return;
+        }
+
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Visions_of_Regret, target->Id))
+            return;
+
+        if (overloadTarget->Skill > 0) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
+                return;
+        }
+
+        if (overloadTarget->GetIsHexed()) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, overloadTarget->Id))
                 return;
         }
 
         if (target->GetIsHexed() || target->GetIsEnchanted()) {
-            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
                 return;
         }
-        else if (offTarget->GetIsHexed() || offTarget->GetIsEnchanted()) {
-            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, offTarget->Id))
+        else if (overloadTarget->GetIsHexed() || overloadTarget->GetIsEnchanted()) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, overloadTarget->Id))
                 return;
         }
 
-        if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
+            return;
+    }
+
+    void EnemyHandler::SpikeAsESurge(GW::Agent* target, unsigned int n, GW::Agent* overloadTarget) {
+        auto esurgeTargets = GetEnemiesInRange(target, GW::Constants::SqrRange::Adjacent, [](GW::Agent* a, GW::Agent* b) {
+            if ((HasHighEnergy(a) && !HasHighEnergy(b)) || (!HasHighEnergy(a) && HasHighEnergy(b))) {
+                return HasHighEnergy(a);
+            }
+
+            return a->Id < b->Id;
+        });
+        auto esurgeTarget = esurgeTargets.size() > n
+            ? esurgeTargets[n]
+            : (esurgeTargets.size() > 0)
+                ? esurgeTargets[(n % esurgeTargets.size())]
+                : target;
+
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, esurgeTarget->Id))
+            return;
+
+        if (overloadTarget->Skill > 0) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
+                return;
+        }
+
+        if (overloadTarget->GetIsHexed()) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, overloadTarget->Id))
+                return;
+        }
+
+        if (target->GetIsHexed() || target->GetIsEnchanted()) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
+                return;
+        }
+        else if (overloadTarget->GetIsHexed() || overloadTarget->GetIsEnchanted()) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, overloadTarget->Id))
+                return;
+        }
+
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
             return;
     }
 
@@ -315,66 +310,75 @@ namespace gbr::InProcess {
         });
         auto offTarget = otherAdjacentEnemies.size() > 0 ? otherAdjacentEnemies[0] : target;
 
-        auto s = L"Target: " + std::to_wstring(offTarget->Id) + L" " + ModelIdToString(offTarget->PlayerNumber);
-        GW::Chat().SendChat(s.c_str(), L'#');
-
         if (HasHighAttackRate(target)) {
-            if (TryUseSkill(GW::Constants::SkillID::Wandering_Eye, target->Id))
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Wandering_Eye, target->Id))
                 return;
         }
 
-        if (TryUseSkill(GW::Constants::SkillID::Wandering_Eye, offTarget->Id))
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Wandering_Eye, offTarget->Id))
             return;
 
         if (target->Skill > 0) {
-            if (TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
                 return;
         }
 
         if (offTarget->Skill > 0) {
-            if (TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, offTarget->Id))
                 return;
         }
 
         if (target->GetIsHexed() || target->GetIsEnchanted()) {
-            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
                 return;
         }
         else if (offTarget->GetIsHexed() || offTarget->GetIsEnchanted()) {
-            if (TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, offTarget->Id))
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, offTarget->Id))
                 return;
         }
 
-        if (TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
             return;
 
         if (target->GetIsHexed()) {
-            if (TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, target->Id))
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, target->Id))
                 return;
         }
-    }
-
-    bool EnemyHandler::TryUseSkill(GW::Constants::SkillID skillId, DWORD targetId) {
-        auto skill = GW::Skillbar::GetPlayerSkillbar().GetSkillById(skillId);
-        if (skill.SkillId > 0 && skill.GetRecharge() == 0 && !GW::Skillbar::GetPlayerSkillbar().Casting) {
-            GW::Skillbarmgr().UseSkill(GW::Skillbarmgr().GetSkillSlot(skillId), targetId);
-            return true;
-        }
-
-        return false;
     }
 
     std::vector<GW::Agent*> EnemyHandler::GetOtherEnemiesInRange(GW::Agent* target, float rangeSq, std::function<bool(GW::Agent*, GW::Agent*)> sort /*= nullptr*/) {
         std::vector<GW::Agent*> enemies;
 
-        auto playerPos = GW::Agents().GetPlayer()->pos;
+        auto targetPos = target->pos;
         for (auto agent : GW::Agents().GetAgentArray()) {
             if (agent
                 && agent->Id != target->Id
                 && !agent->GetIsDead()
                 && agent->Allegiance == 3
                 && !agent->GetIsSpawned()
-                && agent->pos.SquaredDistanceTo(playerPos) < rangeSq) {
+                && agent->pos.SquaredDistanceTo(targetPos) < rangeSq) {
+
+                enemies.push_back(agent);
+            }
+        }
+
+        if (sort) {
+            std::sort(enemies.begin(), enemies.end(), sort);
+        }
+
+        return enemies;
+    }
+
+    std::vector<GW::Agent*> EnemyHandler::GetEnemiesInRange(GW::Agent* target, float rangeSq, std::function<bool(GW::Agent*, GW::Agent*)> sort /*= nullptr*/) {
+        std::vector<GW::Agent*> enemies;
+
+        auto targetPos = target->pos;
+        for (auto agent : GW::Agents().GetAgentArray()) {
+            if (agent
+                && !agent->GetIsDead()
+                && agent->Allegiance == 3
+                && !agent->GetIsSpawned()
+                && agent->pos.SquaredDistanceTo(targetPos) < rangeSq) {
 
                 enemies.push_back(agent);
             }
@@ -389,22 +393,27 @@ namespace gbr::InProcess {
 
     bool EnemyHandler::HasHighEnergy(GW::Agent* agent) {
         switch (agent->PlayerNumber) {
-        case GW::Constants::ModelID::DoA::HeartTormentor:
         case GW::Constants::ModelID::DoA::MargoniteAnurDabi:
         case GW::Constants::ModelID::DoA::MargoniteAnurKaya:
         case GW::Constants::ModelID::DoA::MargoniteAnurKi:
         case GW::Constants::ModelID::DoA::MargoniteAnurSu:
         case GW::Constants::ModelID::DoA::MindTormentor:
         case GW::Constants::ModelID::DoA::SoulTormentor:
+        case GW::Constants::ModelID::DoA::HeartTormentor:
+        case GW::Constants::ModelID::DoA::WaterTormentor:
+        case GW::Constants::ModelID::DoA::VeilMindTormentor:
+        case GW::Constants::ModelID::DoA::VeilSoulTormentor:
+        case GW::Constants::ModelID::DoA::VeilHeartTormentor:
+        case GW::Constants::ModelID::DoA::VeilWaterTormentor:
         case GW::Constants::ModelID::DoA::StygianHunger:
         case GW::Constants::ModelID::DoA::StygianLordEle:
         case GW::Constants::ModelID::DoA::StygianLordMesmer:
         case GW::Constants::ModelID::DoA::StygianLordMonk:
         case GW::Constants::ModelID::DoA::StygianLordNecro:
-        case GW::Constants::ModelID::DoA::WaterTormentor:
-        //case GW::Constants::ModelID::DoA::AnguishTitan
-        //case GW::Constants::ModelID::DoA::TerrorwebDryder
-        //case GW::Constants::ModelID::DoA::DreamRider
+        case GW::Constants::ModelID::DoA::AnguishTitan:
+        case GW::Constants::ModelID::DoA::DespairTitan:
+        case GW::Constants::ModelID::DoA::TorturewebDryder:
+        case GW::Constants::ModelID::DoA::GreaterDreamRider:
             return true;
         default:
             return false;
@@ -414,38 +423,30 @@ namespace gbr::InProcess {
     bool EnemyHandler::HasHighAttackRate(GW::Agent* agent) {
         switch (agent->PlayerNumber) {
         case GW::Constants::ModelID::DoA::BlackBeastOfArgh:
-        case GW::Constants::ModelID::DoA::EarthTormentor:
-        case GW::Constants::ModelID::DoA::FleshTormentor:
         case GW::Constants::ModelID::DoA::MargoniteAnurMank:
-        case GW::Constants::ModelID::DoA::MargoniteAnurRand:
+        case GW::Constants::ModelID::DoA::MargoniteAnurRund:
         case GW::Constants::ModelID::DoA::MargoniteAnurRuk:
         case GW::Constants::ModelID::DoA::MargoniteAnurTuk:
-        case GW::Constants::ModelID::DoA::MargoniteAnurVi:
+        case GW::Constants::ModelID::DoA::MargoniteAnurVu:
+        case GW::Constants::ModelID::DoA::EarthTormentor:
+        case GW::Constants::ModelID::DoA::FleshTormentor:
         case GW::Constants::ModelID::DoA::SpiritTormentor:
+        case GW::Constants::ModelID::DoA::SanityTormentor:
+        case GW::Constants::ModelID::DoA::VeilEarthTormentor:
+        case GW::Constants::ModelID::DoA::VeilFleshTormentor:
+        case GW::Constants::ModelID::DoA::VeilSpiritTormentor:
+        case GW::Constants::ModelID::DoA::VeilSanityTormentor:
         case GW::Constants::ModelID::DoA::StygianBrute:
         case GW::Constants::ModelID::DoA::StygianFiend:
         case GW::Constants::ModelID::DoA::StygianGolem:
         case GW::Constants::ModelID::DoA::StygianHorror:
         case GW::Constants::ModelID::DoA::StygianLordDerv:
         case GW::Constants::ModelID::DoA::StygianLordRanger:
-        //case GW::Constants::ModelID::DoA::DementiaTitan
+        case GW::Constants::ModelID::DoA::FuryTitan:
+        //case GW::Constants::ModelID::DoA::DementiaTitan:
             return true;
         default:
             return false;
-        }
-    }
-
-    std::wstring EnemyHandler::ModelIdToString(int id) {
-        switch (id) {
-        case GW::Constants::ModelID::DoA::EarthTormentor: return L"Earth Tormentor";
-        case GW::Constants::ModelID::DoA::FleshTormentor: return L"Flesh Tormentor";
-        case GW::Constants::ModelID::DoA::SoulTormentor: return L"Soul Tormentor";
-        case GW::Constants::ModelID::DoA::MindTormentor: return L"Mind Tormentor";
-        case GW::Constants::ModelID::DoA::HeartTormentor: return L"Heart Tormentor";
-        case GW::Constants::ModelID::DoA::WaterTormentor: return L"Water Tormentor";
-        case GW::Constants::ModelID::DoA::SanityTormentor: return L"Sanity Tormentor";
-        case GW::Constants::ModelID::DoA::SpiritTormentor: return L"Spirit Tormentor";
-        default: return L"Unknown";
         }
     }
 }

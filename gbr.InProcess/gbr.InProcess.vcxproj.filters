@@ -14,6 +14,9 @@
     <Filter Include="BonderHandler">
       <UniqueIdentifier>{dc351eac-35d7-43e5-9bcc-be26cffeaa81}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Utilities">
+      <UniqueIdentifier>{85f5258d-f7c7-458e-ac70-9b8ea8fb2f7c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -29,6 +32,9 @@
     <ClCompile Include="BonderHandler\BonderHandler.cpp">
       <Filter>BonderHandler</Filter>
     </ClCompile>
+    <ClCompile Include="Utilities\SkillUtility.cpp">
+      <Filter>Utilities</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommandHandler\CommandHandler.h">
@@ -42,6 +48,9 @@
     </ClInclude>
     <ClInclude Include="BonderHandler\BonderHandler.h">
       <Filter>BonderHandler</Filter>
+    </ClInclude>
+    <ClInclude Include="Utilities\SkillUtility.h">
+      <Filter>Utilities</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

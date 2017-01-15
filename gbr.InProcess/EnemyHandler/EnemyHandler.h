@@ -17,29 +17,29 @@ namespace gbr::InProcess {
         static EnemyHandler* instance;
         static DWORD WINAPI ThreadEntry(LPVOID);
 
-        EnemyHandler(PlayerType playerType);
+        EnemyHandler(PlayerType playerType, int esurgeNumber);
         ~EnemyHandler();
         void SpikeTarget(GW::Agent* target);
-        void JumpToTarget(GW::Agent* target);
-        bool RessurectTarget(GW::Agent* target);
-        void SendDialog(GW::Agent* npc);
+        static void JumpToTarget(GW::Agent* target);
+        static bool RessurectTarget(GW::Agent* target);
+        static void AcceptNextDialog();
 
     private:
         GUID hookGuid;
 
-        DWORD GetQuestTakeDialog(DWORD quest) { return (quest << 8) | 0x800001; };
-        DWORD GetQuestUpdateDialog(DWORD quest) { return (quest << 8) | 0x800004; };
-        DWORD GetQuestRewardDialog(DWORD quest) { return (quest << 8) | 0x800007; };
+        static DWORD GetQuestTakeDialog(DWORD quest) { return (quest << 8) | 0x800001; };
+        static DWORD GetQuestUpdateDialog(DWORD quest) { return (quest << 8) | 0x800004; };
+        static DWORD GetQuestRewardDialog(DWORD quest) { return (quest << 8) | 0x800007; };
 
-        void SpikeAsVoR(GW::Agent* target);
-        void SpikeAsESurge(GW::Agent* target, unsigned int n);
+        void SpikeAsVoR(GW::Agent* target, GW::Agent* overloadTarget);
+        void SpikeAsESurge(GW::Agent* target, unsigned int n, GW::Agent* overloadTarget);
         void SpikeAsRez(GW::Agent* target);
-        bool TryUseSkill(GW::Constants::SkillID skillId, DWORD targetId);
-        std::vector<GW::Agent*> GetOtherEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);
-        bool HasHighEnergy(GW::Agent* agent);
-        bool HasHighAttackRate(GW::Agent* agent);
-        std::wstring ModelIdToString(int id);
+        static std::vector<GW::Agent*> GetOtherEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);
+        static std::vector<GW::Agent*> GetEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);
+        static bool HasHighEnergy(GW::Agent* agent);
+        static bool HasHighAttackRate(GW::Agent* agent);
 
         PlayerType playerType;
+        int esurgeNumber;
     };
 }
