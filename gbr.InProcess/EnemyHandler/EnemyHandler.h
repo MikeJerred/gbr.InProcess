@@ -31,13 +31,14 @@ namespace gbr::InProcess {
         static DWORD GetQuestUpdateDialog(DWORD quest) { return (quest << 8) | 0x800004; };
         static DWORD GetQuestRewardDialog(DWORD quest) { return (quest << 8) | 0x800007; };
 
-        void SpikeAsVoR(GW::Agent* target, GW::Agent* overloadTarget);
-        void SpikeAsESurge(GW::Agent* target, unsigned int n, GW::Agent* overloadTarget);
-        void SpikeAsRez(GW::Agent* target);
+        static void SpikeAsVoR(GW::Agent* target, GW::Agent* overloadTarget);
+        static void SpikeAsESurge(GW::Agent* target, unsigned int n, GW::Agent* overloadTarget);
+        static void SpikeAsRez(GW::Agent* target);
         static std::vector<GW::Agent*> GetOtherEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);
         static std::vector<GW::Agent*> GetEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);
         static bool HasHighEnergy(GW::Agent* agent);
         static bool HasHighAttackRate(GW::Agent* agent);
+        static std::wstring GetAgentName(GW::Agent* agent);
 
         PlayerType playerType;
         int esurgeNumber;

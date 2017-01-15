@@ -10,6 +10,8 @@
 namespace gbr::InProcess {
     using SkillUtility = Utilities::SkillUtility;
 
+    BonderHandler* BonderHandler::instance = nullptr;
+
     DWORD WINAPI BonderHandler::ThreadEntry(LPVOID) {
         auto skills = GW::Skillbar::GetPlayerSkillbar().Skills;
 
@@ -79,8 +81,6 @@ namespace gbr::InProcess {
                     if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Blessed_Aura, player->Id))
                         return;
                 }
-
-
             }
 
             auto spiritPos = gbr::Shared::Commands::AggressiveMoveTo::GetSpiritPos();

@@ -60,6 +60,10 @@ namespace gbr::InProcess {
             n = 3;
         }
 
+        if (type == PlayerType::Bonder) {
+            return TRUE;
+        }
+
         instance = new EnemyHandler(type, n);
 
         return TRUE;
@@ -68,7 +72,7 @@ namespace gbr::InProcess {
     EnemyHandler::EnemyHandler(PlayerType playerType, int esurgeNumber) : playerType(playerType), esurgeNumber(esurgeNumber) {
         static long long sleepUntil = 0;
 
-        hookGuid = GW::Gamethread().AddPermanentCall([&]() {
+        hookGuid = GW::Gamethread().AddPermanentCall([this]() {
             long long currentTime = GetTickCount();
 
             if ((sleepUntil - currentTime) > 0) {
@@ -87,23 +91,18 @@ namespace gbr::InProcess {
             if (id) {
                 auto agent = agents[id];
                 if (agent) {
-                    if (agent->GetIsItemType()) {
-                        GW::Agents().Move(agent->pos);
-                    }
-                    else if (!agent->GetIsDead()) {
+                    if (!agent->GetIsDead()) {
                         if (agent->Allegiance == 3) {
                             // kill the enemy
-                            if (playerType != PlayerType::Bonder) {
-                                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                                    GW::Agents().Move(player->pos); // stop moving
-                                    SpikeTarget(agent);
-                                }
-                                else {
-                                    GW::Agents().Move(agent->pos);
-                                }
-
-                                return;
+                            if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                                GW::Agents().Move(player->pos); // stop moving
+                                SpikeTarget(agent);
                             }
+                            else {
+                                GW::Agents().Move(agent->pos);
+                            }
+
+                            return;
                         }
                         else if (agent->IsNPC()) {
                             if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Adjacent) {
@@ -138,23 +137,23 @@ namespace gbr::InProcess {
 
                         // should never get here: any agent that is alive should be either an enemy, an NPC, or a player
                     }
-                    else if (agent->IsPlayer()) {
-                        // rez player
-                        if (playerType == PlayerType::Rez) {
-                            if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                                if (!RessurectTarget(agent))
-                                    return;
-                                // after here we fall out of the if-else scopes and erase the target Id
-                            }
-                            else {
-                                GW::Agents().Move(agent->pos);
-                                return;
-                            }
-                        }
-                    }
-                }
+                    //else if (agent->IsPlayer()) {
+                    //    // rez player
+                    //    if (playerType == PlayerType::Rez) {
+                    //        if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                    //            if (!RessurectTarget(agent))
+                    //                return;
+                    //            // after here we fall out of the if-else scopes and erase the target Id
+                    //        }
+                    //        else {
+                    //            GW::Agents().Move(agent->pos);
+                    //            return;
+                    //        }
+                    //    }
+                    //}
 
-                gbr::Shared::Commands::AggressiveMoveTo::SetTargetAgentId(0);
+                    gbr::Shared::Commands::AggressiveMoveTo::SetTargetAgentId(0);
+                }
             }
         });
     }
@@ -165,7 +164,10 @@ namespace gbr::InProcess {
 
     void EnemyHandler::JumpToTarget(GW::Agent* target) {
         if (!SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, target->Id)) {
-            GW::Agents().GoNPC(target);
+            if (target->IsNPC())
+                GW::Agents().GoNPC(target);
+            else if (target->IsPlayer())
+                GW::Agents().Move(target->pos);
         }
     }
 
@@ -205,15 +207,16 @@ namespace gbr::InProcess {
             return a->Id < b->Id;
         });
 
-        GW::Agent* esurgeOverloadTarget = overloadTargets.size() > esurgeNumber ? overloadTargets[esurgeNumber] : target;
-        GW::Agent* vorOverloadTarget = overloadTargets.size() > 4 ? overloadTargets[4] : target;
-
         switch (playerType) {
         case PlayerType::Vor:
+        {
+            GW::Agent* vorOverloadTarget = overloadTargets.size() > 4 ? overloadTargets[4] : target;
             SpikeAsVoR(target, vorOverloadTarget);
             break;
+        }
         case PlayerType::ESurge:
         {
+            GW::Agent* esurgeOverloadTarget = overloadTargets.size() > esurgeNumber ? overloadTargets[esurgeNumber] : target;
             SpikeAsESurge(target, esurgeNumber, esurgeOverloadTarget);
             break;
         }
@@ -234,8 +237,10 @@ namespace gbr::InProcess {
                 return;
         }
 
-        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Visions_of_Regret, target->Id))
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Visions_of_Regret, target->Id)) {
+            GW::Chat().SendChat((L"VoR on " + GetAgentName(target)).c_str(), L'#');
             return;
+        }
 
         if (overloadTarget->Skill > 0) {
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
@@ -274,8 +279,10 @@ namespace gbr::InProcess {
                 ? esurgeTargets[(n % esurgeTargets.size())]
                 : target;
 
-        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, esurgeTarget->Id))
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, esurgeTarget->Id)) {
+            GW::Chat().SendChat((L"ESurge on " + GetAgentName(esurgeTarget)).c_str(), L'#');
             return;
+        }
 
         if (overloadTarget->Skill > 0) {
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
@@ -447,6 +454,24 @@ namespace gbr::InProcess {
             return true;
         default:
             return false;
+        }
+    }
+
+    std::wstring EnemyHandler::GetAgentName(GW::Agent* agent) {
+        switch (agent->PlayerNumber) {
+        case GW::Constants::ModelID::DoA::MargoniteAnurDabi: return L"MargoniteAnurDabi";
+        case GW::Constants::ModelID::DoA::MargoniteAnurKaya: return L"MargoniteAnurKaya";
+        case GW::Constants::ModelID::DoA::MargoniteAnurKi: return L"MargoniteAnurKi";
+        case GW::Constants::ModelID::DoA::MargoniteAnurMank: return L"MargoniteAnurMank";
+        case GW::Constants::ModelID::DoA::MargoniteAnurRuk: return L"MargoniteAnurRuk";
+        case GW::Constants::ModelID::DoA::MargoniteAnurRund: return L"MargoniteAnurRund";
+        case GW::Constants::ModelID::DoA::MargoniteAnurSu: return L"MargoniteAnurSu";
+        case GW::Constants::ModelID::DoA::MargoniteAnurTuk: return L"MargoniteAnurTuk";
+        case GW::Constants::ModelID::DoA::MargoniteAnurVu: return L"MargoniteAnurVu";
+        case GW::Constants::ModelID::DoA::AnguishTitan: return L"AnguishTitan";
+        case GW::Constants::ModelID::DoA::DespairTitan: return L"DespairTitan";
+        case GW::Constants::ModelID::DoA::FuryTitan: return L"FuryTitan";
+        default: return std::to_wstring(agent->Id).c_str();
         }
     }
 }
