@@ -1,5 +1,6 @@
 #include <GWCA/GWCA.h>
 #include <GWCA/Managers/EffectMgr.h>
+#include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 #include <GWCA/Utilities/Maybe.h>
 #include <gbr.Shared/Commands/AggressiveMoveTo.h>
@@ -63,6 +64,32 @@ namespace gbr::InProcess {
             }
             else {
                 GW::Agents().Move(spiritPos.Value());
+                return;
+            }
+        }
+
+        auto players = GW::Partymgr().GetPartyInfo()->players;
+        GW::Agent* emo = nullptr;
+        for (auto p : players) {
+            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+            auto agent = GW::Agents().GetAgentByID(id);
+
+            if (agent->Primary == (BYTE)GW::Constants::Profession::Elementalist
+                && agent->Secondary == (BYTE)GW::Constants::Profession::Monk) {
+
+                emo = agent;
+            }
+        }
+
+        if (emo) {
+            for (auto p : players) {
+                auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+                auto agent = GW::Agents().GetAgentByID(id);
+
+                if (agent && agent->HP < 0.5f) {
+                    if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Seed_of_Life, emo->Id))
+                        return;
+                }
             }
         }
     }
@@ -102,11 +129,38 @@ namespace gbr::InProcess {
         }
 
         auto buffs = GW::Effects().GetPlayerBuffArray();
-
         if (buffs.valid()) {
+            std::vector<GW::Buff> protBonds;
+
             for (auto buff : buffs) {
-                buff.
+                if (buff.SkillId == (DWORD)GW::Constants::SkillID::Protective_Bond)
+                    protBonds.push_back(buff);
+            }
+
+            auto agents = GW::Agents().GetAgentArray();
+            auto players = GW::Partymgr().GetPartyInfo()->players;
+            for (auto p : players) {
+                auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+                if (!HasABond(id, protBonds)) {
+                    if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Protective_Bond, id)) {
+                        return;
+                    }
+                    else {
+                        GW::Agents().Move(GW::Agents().GetAgentByID(id)->pos);
+                        return;
+                    }
+                }
             }
         }
+    }
+
+    bool BonderHandler::HasABond(DWORD agentId, std::vector<GW::Buff> bonds) {
+        for (auto bond : bonds) {
+            if (bond.TargetAgentId == agentId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -12,6 +12,8 @@ namespace gbr::InProcess {
         bool ShouldSleep(long long& sleepUntil);
         void TickMonk();
         void TickEmo();
+
+        bool HasABond(DWORD loginNumber, std::vector<GW::Buff> bonds);
     public:
         BonderHandler(Utilities::PlayerType playerType);
         ~BonderHandler();
