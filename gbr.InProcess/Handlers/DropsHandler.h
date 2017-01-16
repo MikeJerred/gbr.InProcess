@@ -4,12 +4,14 @@
 
 namespace gbr::InProcess {
     class DropsHandler {
-    public:
-        static DWORD WINAPI ThreadEntry(LPVOID);
-
-        void Listen();
-        static bool PickupNearbyGem();
     private:
         static const std::initializer_list<int> wantedModelIds;
+        GUID hookGuid;
+
+        static void Tick();
+        static bool PickupNearbyGem();
+    public:
+        DropsHandler();
+        ~DropsHandler();
     };
 }

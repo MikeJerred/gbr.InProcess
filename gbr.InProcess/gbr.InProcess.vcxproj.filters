@@ -1,55 +1,51 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="CommandHandler">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
-    <Filter Include="DropsHandler">
-      <UniqueIdentifier>{b63eed75-a373-4a51-bb45-aaa28aae4e52}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="EnemyHandler">
-      <UniqueIdentifier>{a70a4d87-89c0-48eb-bff7-8ae87bc99bad}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="BonderHandler">
-      <UniqueIdentifier>{dc351eac-35d7-43e5-9bcc-be26cffeaa81}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Utilities">
       <UniqueIdentifier>{85f5258d-f7c7-458e-ac70-9b8ea8fb2f7c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Handlers">
+      <UniqueIdentifier>{c58baf61-fd5f-4ca3-bed9-1ff497311627}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="CommandHandler\CommandHandler.cpp">
-      <Filter>CommandHandler</Filter>
-    </ClCompile>
-    <ClCompile Include="DropsHandler\DropsHandler.cpp">
-      <Filter>DropsHandler</Filter>
-    </ClCompile>
-    <ClCompile Include="EnemyHandler\EnemyHandler.cpp">
-      <Filter>EnemyHandler</Filter>
-    </ClCompile>
-    <ClCompile Include="BonderHandler\BonderHandler.cpp">
-      <Filter>BonderHandler</Filter>
-    </ClCompile>
     <ClCompile Include="Utilities\SkillUtility.cpp">
+      <Filter>Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="Handlers\BonderHandler.cpp">
+      <Filter>Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="Handlers\SpikerHandler.cpp">
+      <Filter>Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="Handlers\DropsHandler.cpp">
+      <Filter>Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="Handlers\CommandHandler.cpp">
+      <Filter>Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="Utilities\PlayerUtility.cpp">
       <Filter>Utilities</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CommandHandler\CommandHandler.h">
-      <Filter>CommandHandler</Filter>
-    </ClInclude>
-    <ClInclude Include="DropsHandler\DropsHandler.h">
-      <Filter>DropsHandler</Filter>
-    </ClInclude>
-    <ClInclude Include="EnemyHandler\EnemyHandler.h">
-      <Filter>EnemyHandler</Filter>
-    </ClInclude>
-    <ClInclude Include="BonderHandler\BonderHandler.h">
-      <Filter>BonderHandler</Filter>
-    </ClInclude>
     <ClInclude Include="Utilities\SkillUtility.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="Handlers\BonderHandler.h">
+      <Filter>Handlers</Filter>
+    </ClInclude>
+    <ClInclude Include="Handlers\SpikerHandler.h">
+      <Filter>Handlers</Filter>
+    </ClInclude>
+    <ClInclude Include="Handlers\DropsHandler.h">
+      <Filter>Handlers</Filter>
+    </ClInclude>
+    <ClInclude Include="Handlers\CommandHandler.h">
+      <Filter>Handlers</Filter>
+    </ClInclude>
+    <ClInclude Include="Utilities\PlayerUtility.h">
       <Filter>Utilities</Filter>
     </ClInclude>
   </ItemGroup>

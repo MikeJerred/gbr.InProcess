@@ -13,39 +13,33 @@ namespace gbr::InProcess {
         GW::Constants::ItemID::MargoniteGem
     };
 
-    DWORD WINAPI DropsHandler::ThreadEntry(LPVOID) {
-        auto instance = DropsHandler();
-
-        instance.Listen();
-
-        return TRUE;
+    DropsHandler::DropsHandler() {
+        hookGuid = GW::Gamethread().AddPermanentCall([]() {
+            Tick();
+        });
     }
 
-    void DropsHandler::Listen() {
-        bool waitingForCall = false;
-        bool pickingUp = false;
+    DropsHandler::~DropsHandler() {
+        GW::Gamethread().RemovePermanentCall(hookGuid);
+    }
 
-        while (true) {
-            if (pickingUp) {
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                pickingUp = false;
+    void DropsHandler::Tick() {
+        static long long sleepUntil = 0;
+
+        long long currentTime = GetTickCount();
+
+        if ((sleepUntil - currentTime) > 0) {
+            return;
+        }
+
+        sleepUntil = currentTime + 250;
+
+        auto player = GW::Agents().GetPlayer();
+
+        if (player && !player->GetIsMoving()) {
+            if (PickupNearbyGem()) {
+                sleepUntil = currentTime + 2000;
             }
-
-            if (!waitingForCall) {
-                waitingForCall = true;
-
-                GW::Gamethread().Enqueue([&]() {
-                    auto player = GW::Agents().GetPlayer();
-
-                    if (player && !player->GetIsMoving()) {
-                        pickingUp = PickupNearbyGem();
-                    }
-
-                    waitingForCall = false;
-                });
-            }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
     }
 
