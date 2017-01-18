@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Windows.h>
+#include <GWCA/GWCA.h>
+#include <GWCA/GameEntities/Skill.h>
 #include "../Utilities/PlayerUtility.h"
 
 namespace gbr::InProcess {

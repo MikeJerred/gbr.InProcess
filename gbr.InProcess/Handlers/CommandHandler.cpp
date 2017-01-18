@@ -44,7 +44,7 @@ namespace gbr::InProcess {
                     },
                     pipeHandle);
 
-                listenThreads.push_back(listenThread);
+                listenThreads.push_back(std::move(listenThread));
             }
             else {
                 CloseHandle(pipeHandle);

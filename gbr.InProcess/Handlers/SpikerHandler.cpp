@@ -27,10 +27,13 @@ namespace gbr::InProcess {
 
     void SpikerHandler::Tick() {
         static long long sleepUntil = 0;
+        static int skippedTicks = 0;
 
         long long currentTime = GetTickCount();
-        if ((sleepUntil - currentTime) > 0)
+        if ((sleepUntil - currentTime) > 0) {
+            skippedTicks++;
             return;
+        }
 
         sleepUntil = currentTime + 10;
 
@@ -64,7 +67,6 @@ namespace gbr::InProcess {
                             // after here we fall out of the if-else scopes and erase the target Id
                         }
                         else if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                            AcceptNextDialog();
                             JumpToTarget(agent);
                             return;
                         }
@@ -135,10 +137,8 @@ namespace gbr::InProcess {
                 return;
         }
 
-        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Visions_of_Regret, target->Id)) {
-            GW::Chat().SendChat((L"VoR on " + GetAgentName(target)).c_str(), L'#');
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Visions_of_Regret, target->Id))
             return;
-        }
 
         if (overloadTarget->Skill > 0) {
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
@@ -191,10 +191,8 @@ namespace gbr::InProcess {
             break;
         }
 
-        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, esurgeTarget->Id)) {
-            GW::Chat().SendChat((L"ESurge on " + GetAgentName(esurgeTarget)).c_str(), L'#');
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, esurgeTarget->Id))
             return;
-        }
 
         if (overloadTarget->Skill > 0) {
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, overloadTarget->Id))
@@ -222,19 +220,25 @@ namespace gbr::InProcess {
 
     void SpikerHandler::JumpToTarget(GW::Agent* target) {
         if (!SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, target->Id)) {
+            GW::Chat().SendChat(L"Couldn't Jump", L'#');
             if (target->IsNPC())
                 GW::Agents().GoNPC(target);
             else if (target->IsPlayer())
                 GW::Agents().Move(target->pos);
+        }
+        else {
+            GW::Chat().SendChat(L"Jumped", L'#');
         }
     }
 
     void SpikerHandler::AcceptNextDialog() {
         static bool queued = false;
         if (!queued) {
+            GW::Chat().SendChat(L"Accept Next Dialog", L'#');
             queued = true;
             GW::StoC().AddSingleGameServerEvent<GW::Packet::StoC::P114_DialogButton>([](GW::Packet::StoC::P114_DialogButton* packet) {
                 queued = false;
+                GW::Chat().SendChat(L"Accepting Dialog " + packet->dialog_id, L'#');
                 GW::Agents().Dialog(packet->dialog_id);
                 return false;
             });
