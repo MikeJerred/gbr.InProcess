@@ -28,17 +28,14 @@ namespace gbr::InProcess {
         GW::Gamethread().RemovePermanentCall(hookGuid);
     }
 
-    bool BonderHandler::ShouldSleep(long long& sleepUntil) {
-        long long currentTime = GetTickCount();
-        return (sleepUntil - currentTime) > 0;
-    }
-
     void BonderHandler::TickMonk() {
         static long long sleepUntil = 0;
-        if (ShouldSleep(sleepUntil))
+
+        long long currentTime = GetTickCount();
+        if ((sleepUntil - currentTime) > 0)
             return;
 
-        sleepUntil = GetTickCount() + 10;
+        sleepUntil = currentTime + 10;
 
         auto player = GW::Agents().GetPlayer();
         if (!player || player->GetIsDead())
@@ -74,35 +71,46 @@ namespace gbr::InProcess {
             auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
             auto agent = GW::Agents().GetAgentByID(id);
 
-            if (agent->Primary == (BYTE)GW::Constants::Profession::Elementalist
+            if (agent
+                && agent->Primary == (BYTE)GW::Constants::Profession::Elementalist
                 && agent->Secondary == (BYTE)GW::Constants::Profession::Monk) {
 
                 emo = agent;
             }
         }
 
+        // if we can find the emo, see if we need to seed
         if (emo) {
+            int lowHpCount = 0;
+
             for (auto p : players) {
                 auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
                 auto agent = GW::Agents().GetAgentByID(id);
 
                 if (agent && agent->HP < 0.5f) {
-                    if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Seed_of_Life, emo->Id))
-                        return;
+                    lowHpCount++;
                 }
+            }
+
+            if (lowHpCount > 2) {
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Seed_of_Life, emo->Id))
+                    return;
             }
         }
     }
 
     void BonderHandler::TickEmo() {
         static long long sleepUntil = 0;
-        if (ShouldSleep(sleepUntil))
+
+        long long currentTime = GetTickCount();
+        if ((sleepUntil - currentTime) > 0)
             return;
 
-        sleepUntil = GetTickCount() + 10;
+        sleepUntil = currentTime + 10;
 
         auto player = GW::Agents().GetPlayer();
-        if (!player || player->GetIsDead())
+        auto players = GW::Partymgr().GetPartyInfo()->players;
+        if (!player || player->GetIsDead() || !players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
             return;
 
         if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ether_Renewal, player->Id))
@@ -120,7 +128,7 @@ namespace gbr::InProcess {
                 return;
         }
 
-        if (player->Energy < 0.75f) {
+        if (player->Energy < 0.5f) {
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Spirit_Bond, player->Id))
                 return;
 
@@ -138,12 +146,16 @@ namespace gbr::InProcess {
             }
 
             auto agents = GW::Agents().GetAgentArray();
-            auto players = GW::Partymgr().GetPartyInfo()->players;
             for (auto p : players) {
                 auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+
+                if (id == player->Id)
+                    continue;
+
                 if (!HasABond(id, protBonds)) {
-                    if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Protective_Bond, id)) {
-                        return;
+                    if (player->pos.SquaredDistanceTo(GW::Agents().GetAgentByID(id)->pos) < GW::Constants::SqrRange::Spellcast) {
+                        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Protective_Bond, id))
+                            return;
                     }
                     else {
                         GW::Agents().Move(GW::Agents().GetAgentByID(id)->pos);
@@ -152,13 +164,31 @@ namespace gbr::InProcess {
                 }
             }
         }
+
+        for (auto p : players) {
+            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+            auto agent = GW::Agents().GetAgentByID(id);
+
+            if (agent && agent->HP < 0.5f) {
+                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+
+                }
+            }
+        }
+
+        if (!player->GetIsMoving()) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Spirit_Bond, player->Id))
+                return;
+
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Burning_Speed, player->Id))
+                return;
+        }
     }
 
     bool BonderHandler::HasABond(DWORD agentId, std::vector<GW::Buff> bonds) {
         for (auto bond : bonds) {
-            if (bond.TargetAgentId == agentId) {
+            if (bond.TargetAgentId == agentId)
                 return true;
-            }
         }
 
         return false;

@@ -11,11 +11,10 @@ namespace gbr::InProcess {
         Utilities::PlayerType playerType;
         GUID hookGuid;
 
-        bool ShouldSleep(long long& sleepUntil);
         void TickMonk();
         void TickEmo();
 
-        bool HasABond(DWORD loginNumber, std::vector<GW::Buff> bonds);
+        static bool HasABond(DWORD loginNumber, std::vector<GW::Buff> bonds);
     public:
         BonderHandler(Utilities::PlayerType playerType);
         ~BonderHandler();

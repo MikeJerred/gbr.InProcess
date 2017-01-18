@@ -27,20 +27,17 @@ namespace gbr::InProcess {
 
     void SpikerHandler::Tick() {
         static long long sleepUntil = 0;
-        static int skippedTicks = 0;
 
         long long currentTime = GetTickCount();
-        if ((sleepUntil - currentTime) > 0) {
-            skippedTicks++;
+        if ((sleepUntil - currentTime) > 0)
             return;
-        }
 
         sleepUntil = currentTime + 10;
 
         auto player = GW::Agents().GetPlayer();
         auto agents = GW::Agents().GetAgentArray();
 
-        if (!player || player->GetIsDead() || !agents.valid())
+        if (!player || player->GetIsDead() || !agents.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
             return;
 
         auto id = gbr::Shared::Commands::AggressiveMoveTo::GetTargetAgentId();
