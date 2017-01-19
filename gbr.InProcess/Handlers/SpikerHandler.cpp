@@ -168,8 +168,16 @@ namespace gbr::InProcess {
 
             return a->Id < b->Id;
         });
+        auto wanderingTargets = GetEnemiesInRange(target, GW::Constants::SqrRange::Nearby, [](GW::Agent* a, GW::Agent* b) {
+            if ((HasHighAttackRate(a) && !HasHighAttackRate(b)) || (!HasHighAttackRate(a) && HasHighAttackRate(b))) {
+                return HasHighAttackRate(a);
+            }
+
+            return a->Id < b->Id;
+        });
 
         GW::Agent* esurgeTarget;
+        GW::Agent* wanderingTarget = nullptr;
         switch (playerType) {
         case Utilities::PlayerType::ESurge1:
             esurgeTarget = esurgeTargets.size() > 0 ? esurgeTargets[0] : target;
@@ -179,16 +187,24 @@ namespace gbr::InProcess {
             break;
         case Utilities::PlayerType::ESurge3:
             esurgeTarget = esurgeTargets.size() > 2 ? esurgeTargets[2] : target;
+            wanderingTarget = wanderingTargets.size() > 0 ? wanderingTargets[0] : target;
             break;
         case Utilities::PlayerType::ESurge4:
             esurgeTarget = esurgeTargets.size() > 3 ? esurgeTargets[3] : target;
+            wanderingTarget = wanderingTargets.size() > 1 ? wanderingTargets[1] : target;
             break;
         default:
             esurgeTarget = target;
             break;
         }
 
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Mark_of_Pain, target->Id))
+            return;
+
         if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, esurgeTarget->Id))
+            return;
+
+        if (wanderingTarget && SkillUtility::TryUseSkill(GW::Constants::SkillID::Wandering_Eye, wanderingTarget->Id))
             return;
 
         if (overloadTarget->Skill > 0) {
