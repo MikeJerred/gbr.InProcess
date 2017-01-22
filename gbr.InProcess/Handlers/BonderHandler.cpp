@@ -125,11 +125,11 @@ namespace gbr::InProcess {
                 }
             }
 
-            if (lowHpCount > 2) {
+            if (tankIsLow || lowHpCount > 2) {
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Seed_of_Life, emo->Id))
                     return;
             }
-            else if (lowHpCount > 1) {
+            else if (lowHpCount > 1 && player->Energy * player->MaxEnergy > 15) {
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Reversal_of_Fortune, target->Id))
                     return;
             }
@@ -193,6 +193,16 @@ namespace gbr::InProcess {
                 return;
         }
 
+        GW::Agent* tank = nullptr;
+        for (auto p : players) {
+            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+            auto agent = GW::Agents().GetAgentByID(id);
+            if (agent && (agent->Primary == (BYTE)GW::Constants::Profession::Ranger || agent->Primary == (BYTE)GW::Constants::Profession::Assassin)) {
+                tank = agent;
+                break;
+            }
+        }
+
         for (auto p : players) {
             auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
 
@@ -206,34 +216,21 @@ namespace gbr::InProcess {
 
             auto distance = agent->pos.SquaredDistanceTo(player->pos);
 
-            if (distance < GW::Constants::SqrRange::Spellcast) {
+            if ((id == tank->Id && distance < GW::Constants::SqrRange::Earshot)
+                || distance < GW::Constants::SqrRange::Spellcast) {
+
                 if (agent->HP < 0.5f && SkillUtility::TryUseSkill(GW::Constants::SkillID::Infuse_Health, agent->Id))
                     return;
 
                 if (agent->HP < 0.7f && SkillUtility::TryUseSkill(GW::Constants::SkillID::Spirit_Bond, agent->Id))
                     return;
-
-                /*if (distance > GW::Constants::SqrRange::Area) {
-                    if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, agent->Id))
-                        return;
-                }*/
             }
         }
 
-        // ensure the emo doesn't get stuck if he stops moving (since when not moving we spam spirit bond + burning speed)
+        // ensure the emo doesn't get stuck if he stops moving (since when not moving he spams spirit bond + burning speed)
         auto moveToPos = gbr::Shared::Commands::MoveTo::GetPos();
         if (moveToPos != GW::Maybe<GW::GamePos>::Nothing()) {
             return;
-        }
-
-        GW::Agent* tank = nullptr;
-        for (auto p : players) {
-            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
-            auto agent = GW::Agents().GetAgentByID(id);
-            if (agent && (agent->Primary == (BYTE)GW::Constants::Profession::Ranger || agent->Primary == (BYTE)GW::Constants::Profession::Assassin)) {
-                tank = agent;
-                break;
-            }
         }
 
         auto buffs = GW::Effects().GetPlayerBuffArray();

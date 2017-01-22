@@ -24,7 +24,7 @@ namespace gbr::InProcess {
         static void RezTarget(GW::Agent* target);
         static void AcceptNextDialog();
         static std::vector<GW::Agent*> GetOtherEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);
-        static std::vector<GW::Agent*> GetEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);
+        static std::vector<GW::Agent*> GetEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr, std::function<bool(GW::Agent*)> predicate = nullptr);
         static bool HasHighEnergy(GW::Agent* agent);
         static bool HasHighAttackRate(GW::Agent* agent);
         static std::wstring GetAgentName(GW::Agent* agent);

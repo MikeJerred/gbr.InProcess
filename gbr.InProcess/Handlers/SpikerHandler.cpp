@@ -1,7 +1,4 @@
 #include <algorithm>
-#include <array>
-#include <chrono>
-#include <thread>
 #include <GWCA/GWCA.h>
 #include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/EffectMgr.h>
@@ -113,12 +110,12 @@ namespace gbr::InProcess {
                     if (agent->Allegiance == 3) {
                         // kill the enemy
                         if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                            //GW::Agents().Move(player->pos); // stop moving
+                            GW::Agents().Move(player->pos); // stop moving
                             SpikeTarget(agent);
                         }
                         else {
                             auto agentToPlayer = player->pos - agent->pos;
-                            auto newPos = agent->pos + (agentToPlayer.Normalized() * (GW::Constants::Range::Spellcast - 1.0f));
+                            auto newPos = agent->pos + (agentToPlayer.Normalized() * (GW::Constants::Range::Spellcast - 10.0f));
 
                             GW::Agents().Move(newPos.x, newPos.y);
                         }
@@ -177,6 +174,9 @@ namespace gbr::InProcess {
 
     void SpikerHandler::SpikeTarget(GW::Agent* target) {
         auto overloadTargets = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent, [](GW::Agent* a, GW::Agent* b) {
+            if (a == b)
+                return false;
+
             if ((a->Skill > 0 && b->Skill == 0) || (a->Skill == 0 && b->Skill > 0)) {
                 return a->Skill > 0;
             }
@@ -243,10 +243,8 @@ namespace gbr::InProcess {
                     return;
             }
 
-            if (target->Energy > 0.2f) {
-                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, target->Id))
-                    return;
-            }
+            if (target->Energy > 0.1f && SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, target->Id))
+                return;
 
             if (target->GetIsHexed()) {
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, target->Id))
@@ -294,38 +292,48 @@ namespace gbr::InProcess {
 
     void SpikerHandler::SpikeAsESurge(GW::Agent* target, GW::Agent* overloadTarget) {
         auto esurgeTargets = GetEnemiesInRange(target, GW::Constants::SqrRange::Nearby, [](GW::Agent* a, GW::Agent* b) {
+            if (a == b)
+                return false;
+
             if ((HasHighEnergy(a) && !HasHighEnergy(b)) || (!HasHighEnergy(a) && HasHighEnergy(b))) {
                 return HasHighEnergy(a);
             }
 
             return a->Id < b->Id;
         });
-        auto wanderingTargets = GetEnemiesInRange(target, GW::Constants::SqrRange::Nearby, [](GW::Agent* a, GW::Agent* b) {
-            if ((HasHighAttackRate(a) && !HasHighAttackRate(b)) || (!HasHighAttackRate(a) && HasHighAttackRate(b))) {
-                return HasHighAttackRate(a);
-            }
+        auto wanderingTargets = GetEnemiesInRange(
+            target,
+            GW::Constants::SqrRange::Nearby,
+            [](GW::Agent* a, GW::Agent* b) {
+                if (a == b)
+                    return false;
 
-            return a->Id < b->Id;
-        });
+                if ((HasHighAttackRate(a) && !HasHighAttackRate(b)) || (!HasHighAttackRate(a) && HasHighAttackRate(b))) {
+                    return HasHighAttackRate(a);
+                }
+
+                return a->Id < b->Id;
+            },
+            [](GW::Agent* a) { return HasHighAttackRate(a); });
 
         GW::Agent* esurgeTarget;
         GW::Agent* wanderingTarget = nullptr;
         switch (playerType) {
         case Utilities::PlayerType::ESurge1:
             esurgeTarget = esurgeTargets.size() > 0 ? esurgeTargets[0] : target;
-            wanderingTarget = wanderingTargets.size() > 0 ? wanderingTargets[0] : target;
+            wanderingTarget = wanderingTargets.size() > 0 ? wanderingTargets[0] : nullptr;
             break;
         case Utilities::PlayerType::ESurge2:
             esurgeTarget = esurgeTargets.size() > 1 ? esurgeTargets[1] : target;
-            wanderingTarget = wanderingTargets.size() > 1 ? wanderingTargets[1] : target;
+            wanderingTarget = wanderingTargets.size() > 1 ? wanderingTargets[1] : nullptr;
             break;
         case Utilities::PlayerType::ESurge3:
             esurgeTarget = esurgeTargets.size() > 2 ? esurgeTargets[2] : target;
-            wanderingTarget = wanderingTargets.size() > 2 ? wanderingTargets[2] : target;
+            wanderingTarget = wanderingTargets.size() > 2 ? wanderingTargets[2] : nullptr;
             break;
         case Utilities::PlayerType::ESurge4:
             esurgeTarget = esurgeTargets.size() > 3 ? esurgeTargets[3] : target;
-            wanderingTarget = wanderingTargets.size() > 3 ? wanderingTargets[3] : target;
+            wanderingTarget = wanderingTargets.size() > 3 ? wanderingTargets[3] : nullptr;
             break;
         default:
             esurgeTarget = target;
@@ -413,7 +421,7 @@ namespace gbr::InProcess {
         return enemies;
     }
 
-    std::vector<GW::Agent*> SpikerHandler::GetEnemiesInRange(GW::Agent* target, float rangeSq, std::function<bool(GW::Agent*, GW::Agent*)> sort /*= nullptr*/) {
+    std::vector<GW::Agent*> SpikerHandler::GetEnemiesInRange(GW::Agent* target, float rangeSq, std::function<bool(GW::Agent*, GW::Agent*)> sort /*= nullptr*/, std::function<bool(GW::Agent*)> predicate /*= nullptr*/) {
         std::vector<GW::Agent*> enemies;
 
         auto targetPos = target->pos;
@@ -424,7 +432,8 @@ namespace gbr::InProcess {
                 && !agent->GetIsSpawned()
                 && agent->pos.SquaredDistanceTo(targetPos) < rangeSq) {
 
-                enemies.push_back(agent);
+                if (!predicate || predicate(agent))
+                    enemies.push_back(agent);
             }
         }
 
