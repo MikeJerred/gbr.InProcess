@@ -5,9 +5,11 @@
 #include <GWCA/GWCA.h>
 #include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/EffectMgr.h>
+#include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
 #include <gbr.Shared/Commands/AggressiveMoveTo.h>
+#include <gbr.Shared/Commands/MoveTo.h>
 
 #include "../Utilities/SkillUtility.h"
 #include "SpikerHandler.h"
@@ -36,11 +38,74 @@ namespace gbr::InProcess {
 
         auto player = GW::Agents().GetPlayer();
         auto agents = GW::Agents().GetAgentArray();
+        auto partyInfo = GW::Partymgr().GetPartyInfo();
 
-        if (!player || player->GetIsDead() || !agents.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
+        if (!player || player->GetIsDead() || !agents.valid() || !partyInfo || !partyInfo->players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
             return;
 
+        auto players = partyInfo->players;
+
         auto id = gbr::Shared::Commands::AggressiveMoveTo::GetTargetAgentId();
+
+        GW::Agent* emo = nullptr;
+        GW::Agent* tank = nullptr;
+        for (auto p : players) {
+            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+            auto agent = GW::Agents().GetAgentByID(id);
+
+            if (agent) {
+                if (agent->Primary == (BYTE)GW::Constants::Profession::Elementalist && agent->Secondary == (BYTE)GW::Constants::Profession::Monk) {
+                    emo = agent;
+                }
+                else if (agent->Primary == (BYTE)GW::Constants::Profession::Ranger || agent->Primary == (BYTE)GW::Constants::Profession::Assassin) {
+                    tank = agent;
+                }
+            }
+        }
+
+        auto movePos = gbr::Shared::Commands::MoveTo::GetPos();
+        if (movePos != GW::Maybe<GW::GamePos>::Nothing()) {
+            if (id) {
+                auto agent = agents[id];
+                if (!agent || agent->GetIsDead() || !agent->IsNPC()) {
+                    if (emo) {
+                        auto distanceToEmo = emo->pos.SquaredDistanceTo(player->pos);
+
+                        if (distanceToEmo < GW::Constants::SqrRange::Spellcast) {
+                            if (distanceToEmo > GW::Constants::SqrRange::Area) {
+                                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, emo->Id))
+                                    return;
+                            }
+                        }
+                        else {
+                            for (auto p : players) {
+                                auto agentId = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+
+                                if (tank && agentId == tank->Id)
+                                    continue;
+
+                                if (agentId == emo->Id)
+                                    continue;
+
+                                auto agent = GW::Agents().GetAgentByID(agentId);
+                                auto agentToEmo = emo->pos.SquaredDistanceTo(agent->pos);
+
+                                if (distanceToEmo - agentToEmo > GW::Constants::SqrRange::Nearby) {
+                                    if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, agentId))
+                                        return;
+                                }
+                            }
+                        }
+                    }
+
+                    return;
+                }
+            }
+            else {
+                return;
+            }
+        }
+
         if (id) {
             auto agent = agents[id];
             if (agent) {
@@ -48,11 +113,14 @@ namespace gbr::InProcess {
                     if (agent->Allegiance == 3) {
                         // kill the enemy
                         if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                            GW::Agents().Move(player->pos); // stop moving
+                            //GW::Agents().Move(player->pos); // stop moving
                             SpikeTarget(agent);
                         }
                         else {
-                            GW::Agents().Move(agent->pos);
+                            auto agentToPlayer = player->pos - agent->pos;
+                            auto newPos = agent->pos + (agentToPlayer.Normalized() * (GW::Constants::Range::Spellcast - 1.0f));
+
+                            GW::Agents().Move(newPos.x, newPos.y);
                         }
 
                         return;
@@ -61,10 +129,6 @@ namespace gbr::InProcess {
                         if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Nearby) {
                             AcceptNextDialog();
                             GW::Agents().GoNPC(agent);
-                            // after here we fall out of the if-else scopes and erase the target Id
-                        }
-                        else if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                            JumpToTarget(agent);
                             return;
                         }
                         else {
@@ -89,9 +153,25 @@ namespace gbr::InProcess {
 
                     // should never get here: any agent that is alive should be either an enemy, an NPC, or a player
                 }
+                else if (agent->IsPlayer()) {
+                    if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                        GW::Agents().Move(player->pos); // stop moving
+                        RezTarget(agent);
+                    }
+                    else {
+                        GW::Agents().Move(agent->pos);
+                        return;
+                    }
+                }
 
                 gbr::Shared::Commands::AggressiveMoveTo::SetTargetAgentId(0);
             }
+        }
+
+        auto eternalAura = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Eternal_Aura);
+        if (eternalAura.SkillId == 0) {
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Eternal_Aura, player->Id))
+                return;
         }
     }
 
@@ -104,22 +184,74 @@ namespace gbr::InProcess {
             return a->Id < b->Id;
         });
 
-        switch (playerType) {
-        case Utilities::PlayerType::VoR:
-            SpikeAsVoR(target, overloadTargets.size() > 4 ? overloadTargets[4] : target);
-            break;
-        case Utilities::PlayerType::ESurge1:
-            SpikeAsESurge(target, overloadTargets.size() > 0 ? overloadTargets[0] : target);
-            break;
-        case Utilities::PlayerType::ESurge2:
-            SpikeAsESurge(target, overloadTargets.size() > 1 ? overloadTargets[1] : target);
-            break;
-        case Utilities::PlayerType::ESurge3:
-            SpikeAsESurge(target, overloadTargets.size() > 2 ? overloadTargets[2] : target);
-            break;
-        case Utilities::PlayerType::ESurge4:
-            SpikeAsESurge(target, overloadTargets.size() > 3 ? overloadTargets[3] : target);
-            break;
+        if (overloadTargets.size() == 0) {
+            SpikeSingleTarget(target);
+        }
+        else {
+
+            switch (playerType) {
+            case Utilities::PlayerType::VoR:
+                SpikeAsVoR(target, overloadTargets.size() > 4 ? overloadTargets[4] : target);
+                break;
+            case Utilities::PlayerType::ESurge1:
+                SpikeAsESurge(target, overloadTargets.size() > 0 ? overloadTargets[0] : target);
+                break;
+            case Utilities::PlayerType::ESurge2:
+                SpikeAsESurge(target, overloadTargets.size() > 1 ? overloadTargets[1] : target);
+                break;
+            case Utilities::PlayerType::ESurge3:
+                SpikeAsESurge(target, overloadTargets.size() > 2 ? overloadTargets[2] : target);
+                break;
+            case Utilities::PlayerType::ESurge4:
+                SpikeAsESurge(target, overloadTargets.size() > 3 ? overloadTargets[3] : target);
+                break;
+            }
+        }
+    }
+
+    void SpikerHandler::SpikeSingleTarget(GW::Agent* target) {
+        if (target->HP > 0.3f) {
+            if (HasHighAttackRate(target)) {
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Empathy, target->Id))
+                    return;
+            }
+
+            if (HasHighEnergy(target)) {
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Backfire, target->Id))
+                    return;
+            }
+        }
+
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Visions_of_Regret, target->Id))
+            return;
+
+        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Unnatural_Signet, target->Id))
+            return;
+
+        if ((target->GetIsEnchanted() || target->GetIsConditioned()) && SkillUtility::TryUseSkill(GW::Constants::SkillID::Necrosis, target->Id))
+            return;
+
+        auto player = GW::Agents().GetPlayer();
+        if (player && player->Energy * player->MaxEnergy > 20) {
+            if (target->HP < 0.5f && !target->GetIsDeepWounded()) {
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Finish_Him, target->Id))
+                    return;
+            }
+
+            if (target->Skill > 0) {
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Overload, target->Id))
+                    return;
+            }
+
+            if (target->Energy > 0.2f) {
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, target->Id))
+                    return;
+            }
+
+            if (target->GetIsHexed()) {
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Shatter_Delusions, target->Id))
+                    return;
+            }
         }
     }
 
@@ -181,25 +313,27 @@ namespace gbr::InProcess {
         switch (playerType) {
         case Utilities::PlayerType::ESurge1:
             esurgeTarget = esurgeTargets.size() > 0 ? esurgeTargets[0] : target;
+            wanderingTarget = wanderingTargets.size() > 0 ? wanderingTargets[0] : target;
             break;
         case Utilities::PlayerType::ESurge2:
             esurgeTarget = esurgeTargets.size() > 1 ? esurgeTargets[1] : target;
+            wanderingTarget = wanderingTargets.size() > 1 ? wanderingTargets[1] : target;
             break;
         case Utilities::PlayerType::ESurge3:
             esurgeTarget = esurgeTargets.size() > 2 ? esurgeTargets[2] : target;
-            wanderingTarget = wanderingTargets.size() > 0 ? wanderingTargets[0] : target;
+            wanderingTarget = wanderingTargets.size() > 2 ? wanderingTargets[2] : target;
             break;
         case Utilities::PlayerType::ESurge4:
             esurgeTarget = esurgeTargets.size() > 3 ? esurgeTargets[3] : target;
-            wanderingTarget = wanderingTargets.size() > 1 ? wanderingTargets[1] : target;
+            wanderingTarget = wanderingTargets.size() > 3 ? wanderingTargets[3] : target;
             break;
         default:
             esurgeTarget = target;
             break;
         }
 
-        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Mark_of_Pain, target->Id))
-            return;
+        //if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Mark_of_Pain, target->Id))
+        //    return;
 
         if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Energy_Surge, esurgeTarget->Id))
             return;
@@ -233,25 +367,23 @@ namespace gbr::InProcess {
 
     void SpikerHandler::JumpToTarget(GW::Agent* target) {
         if (!SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, target->Id)) {
-            GW::Chat().SendChat(L"Couldn't Jump", L'#');
             if (target->IsNPC())
                 GW::Agents().GoNPC(target);
             else if (target->IsPlayer())
                 GW::Agents().Move(target->pos);
         }
-        else {
-            GW::Chat().SendChat(L"Jumped", L'#');
-        }
+    }
+
+    void SpikerHandler::RezTarget(GW::Agent* target) {
+        SkillUtility::TryUseSkill(GW::Constants::SkillID::Rebirth, target->Id);
     }
 
     void SpikerHandler::AcceptNextDialog() {
         static bool queued = false;
         if (!queued) {
-            GW::Chat().SendChat(L"Accept Next Dialog", L'#');
             queued = true;
             GW::StoC().AddSingleGameServerEvent<GW::Packet::StoC::P114_DialogButton>([](GW::Packet::StoC::P114_DialogButton* packet) {
                 queued = false;
-                GW::Chat().SendChat(L"Accepting Dialog " + packet->dialog_id, L'#');
                 GW::Agents().Dialog(packet->dialog_id);
                 return false;
             });

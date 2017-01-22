@@ -6,6 +6,7 @@
 #include <GWCA/Managers/AgentMgr.h>
 #include <gbr.Shared/Commands/BaseCommand.h>
 
+#include "../Root.h"
 #include "CommandHandler.h"
 
 namespace gbr::InProcess {
@@ -17,6 +18,8 @@ namespace gbr::InProcess {
         connectionThread = std::thread([this]() {
             Connect();
         });
+
+        listenThreads = std::vector<std::thread>();
     }
 
     void CommandHandler::Connect() {
@@ -59,7 +62,8 @@ namespace gbr::InProcess {
         while (pipeHandle != INVALID_HANDLE_VALUE) {
             if (ReadFile(pipeHandle, buffer, bufferSize, &bytesRead, NULL)) {
                 if (BaseCommand::ExecuteCommand((BaseCommand::BaseRequest*)buffer)) {
-                    FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
+                    //FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
+                    Root::Quit();
                     return;
                 }
             }

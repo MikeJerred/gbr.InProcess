@@ -1,44 +1,22 @@
 #include <Windows.h>
-#include <GWCA/GWCA.h>
 
-#include "Handlers/BonderHandler.h"
-#include "Handlers/CommandHandler.h"
-#include "Handlers/DropsHandler.h"
-#include "Handlers/SpikerHandler.h"
-#include "Utilities/PlayerUtility.h"
+#include "Root.h"
 
 using namespace gbr::InProcess;
 
-BonderHandler* bonderHandler = nullptr;
-CommandHandler* commandHandler = nullptr;
-DropsHandler* dropsHandler = nullptr;
-SpikerHandler* spikerHandler = nullptr;
-
-DWORD WINAPI Start(HMODULE hModule) {
-    if (!GW::Api::Initialize())
-        return FALSE;
-
-    auto playerName = GW::Agents().GetPlayerNameByLoginNumber(GW::Agents().GetPlayer()->LoginNumber);
-    auto playerType = Utilities::PlayerUtility::GetPlayerType();
-
-    commandHandler = new CommandHandler(hModule, playerName);
-    dropsHandler = new DropsHandler();
-
-    switch (playerType) {
-    case Utilities::PlayerType::VoR:
-    case Utilities::PlayerType::ESurge1:
-    case Utilities::PlayerType::ESurge2:
-    case Utilities::PlayerType::ESurge3:
-    case Utilities::PlayerType::ESurge4:
-        spikerHandler = new SpikerHandler(playerType);
-        break;
-    case Utilities::PlayerType::Monk:
-    case Utilities::PlayerType::Emo:
-        bonderHandler = new BonderHandler(playerType);
-        break;
+void Start(HMODULE hModule) {
+    if (*(DWORD*)0x00DE0000 != NULL) {
+        MessageBoxA(0, "Please restart guild wars and try again.", "gbr Error", 0);
+        FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
     }
 
-    return TRUE;
+    while (*(void**)0xA2B294 == nullptr) {
+        Sleep(100);
+    }
+
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)Root::ThreadStart, hModule, 0, 0);
+
+    return;
 }
 
 BOOL WINAPI DllMain(_In_ HMODULE hModule, _In_ DWORD reason, _In_opt_ LPVOID reserved) {
@@ -49,18 +27,6 @@ BOOL WINAPI DllMain(_In_ HMODULE hModule, _In_ DWORD reason, _In_opt_ LPVOID res
         CreateThread(0, 0, (LPTHREAD_START_ROUTINE)Start, hModule, 0, 0);
         break;
     case DLL_PROCESS_DETACH:
-        if (bonderHandler)
-            delete bonderHandler;
-
-        if (commandHandler)
-            delete commandHandler;
-
-        if (dropsHandler)
-            delete dropsHandler;
-
-        if (spikerHandler)
-            delete spikerHandler;
-
         GW::Api::Destruct();
         break;
     }

@@ -12,6 +12,7 @@ namespace gbr::InProcess {
 
         void Tick();
 
+        void SpikeSingleTarget(GW::Agent* target);
         void SpikeTarget(GW::Agent* target);
         void SpikeAsVoR(GW::Agent* target, GW::Agent* overloadTarget);
         void SpikeAsESurge(GW::Agent* target, GW::Agent* overloadTarget);
@@ -20,6 +21,7 @@ namespace gbr::InProcess {
         static DWORD GetQuestUpdateDialog(DWORD quest) { return (quest << 8) | 0x800004; };
         static DWORD GetQuestRewardDialog(DWORD quest) { return (quest << 8) | 0x800007; };
         static void JumpToTarget(GW::Agent* target);
+        static void RezTarget(GW::Agent* target);
         static void AcceptNextDialog();
         static std::vector<GW::Agent*> GetOtherEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);
         static std::vector<GW::Agent*> GetEnemiesInRange(GW::Agent* target, float range, std::function<bool(GW::Agent*, GW::Agent*)> sort = nullptr);

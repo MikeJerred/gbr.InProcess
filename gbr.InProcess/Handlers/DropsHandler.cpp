@@ -2,6 +2,7 @@
 #include <thread>
 #include <GWCA/GWCA.h>
 #include <GWCA/Managers/ItemMgr.h>
+#include <gbr.Shared/Commands/MoveTo.h>
 
 #include "DropsHandler.h"
 
@@ -27,7 +28,6 @@ namespace gbr::InProcess {
         static long long sleepUntil = 0;
 
         long long currentTime = GetTickCount();
-
         if ((sleepUntil - currentTime) > 0) {
             return;
         }
@@ -36,9 +36,22 @@ namespace gbr::InProcess {
 
         auto player = GW::Agents().GetPlayer();
 
+        auto pos = gbr::Shared::Commands::MoveTo::GetPos();
+        if (pos != GW::Maybe<GW::GamePos>::Nothing()) {
+            if (player->pos.SquaredDistanceTo(pos.Value()) < GW::Constants::SqrRange::Adjacent) {
+                gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            }
+            else if (player->Skill == 0) {
+                GW::Agents().Move(pos.Value());
+            }
+
+            return;
+        }
+
+
         if (player && !player->GetIsMoving()) {
             if (PickupNearbyGem()) {
-                sleepUntil = currentTime + 2000;
+                sleepUntil = currentTime + 1000;
             }
         }
     }
@@ -51,14 +64,12 @@ namespace gbr::InProcess {
 
             auto agents = GW::Agents().GetAgentArray();
             auto items = GW::Items().GetItemArray();
-            const float adjacentSq = GW::Constants::Range::Adjacent * GW::Constants::Range::Adjacent;
-            const float nearbySq = GW::Constants::Range::Nearby * GW::Constants::Range::Nearby;
 
             if (agents.valid() && items.valid()) {
                 GW::Agent* chest = nullptr;
 
                 for (auto agent : agents) {
-                    if (!agent || agent->pos.SquaredDistanceTo(pos) > nearbySq)
+                    if (!agent || agent->pos.SquaredDistanceTo(pos) > GW::Constants::SqrRange::Nearby)
                         continue;
 
                     if (agent->GetIsItemType()) {
@@ -67,7 +78,7 @@ namespace gbr::InProcess {
                         if (agent->Owner == player->Id) {
                             for (auto modelId : wantedModelIds) {
                                 if (item->ModelId == modelId) {
-                                    if (agent->pos.SquaredDistanceTo(pos) < adjacentSq) {
+                                    if (agent->pos.SquaredDistanceTo(pos) < GW::Constants::SqrRange::Adjacent) {
                                         GW::Items().PickUpItem(item);
                                         return true;
                                     }
@@ -86,7 +97,7 @@ namespace gbr::InProcess {
                 }
 
                 if (chest) {
-                    if (chest->pos.SquaredDistanceTo(pos) < adjacentSq) {
+                    if (chest->pos.SquaredDistanceTo(pos) < GW::Constants::SqrRange::Adjacent) {
                         GW::Agents().GoSignpost(chest);
                         return true;
                     }

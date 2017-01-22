@@ -39,9 +39,11 @@ namespace gbr::InProcess {
         sleepUntil = currentTime + 10;
 
         auto player = GW::Agents().GetPlayer();
-        auto players = GW::Partymgr().GetPartyInfo()->players;
-        if (!player || player->GetIsDead() || !players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
+        auto partyInfo = GW::Partymgr().GetPartyInfo();
+        if (!player || player->GetIsDead() || !partyInfo || !partyInfo->players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
             return;
+
+        auto players = partyInfo->players;
 
         auto blessedAura = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Blessed_Aura);
         if (blessedAura.SkillId == 0) {
@@ -66,6 +68,23 @@ namespace gbr::InProcess {
             }
         }
 
+
+        auto tagetId = gbr::Shared::Commands::AggressiveMoveTo::GetTargetAgentId();
+        if (tagetId) {
+            auto agent = GW::Agents().GetAgentByID(tagetId);
+
+            if (agent && agent->GetIsDead() && agent->IsPlayer()) {
+                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                    if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Rebirth, tagetId))
+                        return;
+                }
+                else {
+                    GW::Agents().Move(agent->pos);
+                    return;
+                }
+            }
+        }
+
         GW::Agent* emo = nullptr;
         GW::Agent* tank = nullptr;
         for (auto p : players) {
@@ -83,21 +102,35 @@ namespace gbr::InProcess {
             }
         }
 
+        auto veilEffect = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Demonic_Miasma);
+        bool isVeil = veilEffect.SkillId > 0;
+
         // if we can find the emo, see if we need to seed
         if (emo) {
             int lowHpCount = 0;
+            bool tankIsLow = false;
+            GW::Agent* target = nullptr;
 
             for (auto p : players) {
                 auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
                 auto agent = GW::Agents().GetAgentByID(id);
 
-                if (agent && agent->HP < 0.5f) {
+                if (isVeil && tank && agent->Id == tank->Id) {
+                    if (agent->HP < 0.7f)
+                        tankIsLow = true;
+                }
+                else if (agent && agent->HP < 0.5f) {
+                    target = agent;
                     lowHpCount++;
                 }
             }
 
             if (lowHpCount > 2) {
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Seed_of_Life, emo->Id))
+                    return;
+            }
+            else if (lowHpCount > 1) {
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Reversal_of_Fortune, target->Id))
                     return;
             }
         }
@@ -129,8 +162,12 @@ namespace gbr::InProcess {
         sleepUntil = currentTime + 10;
 
         auto player = GW::Agents().GetPlayer();
-        auto players = GW::Partymgr().GetPartyInfo()->players;
-        if (!player || player->GetIsDead() || !players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
+        auto partyInfo = GW::Partymgr().GetPartyInfo();
+        if (!player || player->GetIsDead() || !partyInfo || !partyInfo->players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
+            return;
+
+        auto players = partyInfo->players;
+        if (!GW::Agents().GetPlayerArray().valid())
             return;
 
         if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ether_Renewal, player->Id))
@@ -156,15 +193,37 @@ namespace gbr::InProcess {
                 return;
         }
 
+        for (auto p : players) {
+            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+
+            if (id == player->Id)
+                continue;
+
+            auto agent = GW::Agents().GetAgentByID(id);
+
+            if (!agent)
+                continue;
+
+            auto distance = agent->pos.SquaredDistanceTo(player->pos);
+
+            if (distance < GW::Constants::SqrRange::Spellcast) {
+                if (agent->HP < 0.5f && SkillUtility::TryUseSkill(GW::Constants::SkillID::Infuse_Health, agent->Id))
+                    return;
+
+                if (agent->HP < 0.7f && SkillUtility::TryUseSkill(GW::Constants::SkillID::Spirit_Bond, agent->Id))
+                    return;
+
+                /*if (distance > GW::Constants::SqrRange::Area) {
+                    if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, agent->Id))
+                        return;
+                }*/
+            }
+        }
+
         // ensure the emo doesn't get stuck if he stops moving (since when not moving we spam spirit bond + burning speed)
         auto moveToPos = gbr::Shared::Commands::MoveTo::GetPos();
         if (moveToPos != GW::Maybe<GW::GamePos>::Nothing()) {
-            if (player->pos.SquaredDistanceTo(moveToPos.Value()) > GW::Constants::SqrRange::Adjacent) {
-                GW::Agents().Move(moveToPos.Value());
-                return;
-            }
-
-            gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            return;
         }
 
         GW::Agent* tank = nullptr;
@@ -203,45 +262,35 @@ namespace gbr::InProcess {
                 if (id == player->Id)
                     continue;
 
+                auto agent = GW::Agents().GetAgentByID(id);
+                if (!agent || agent->GetIsDead())
+                    continue;
+
                 if (tank && tank->Id == id) {
                     if (!HasABond(id, lifeBonds)) {
-                        if (player->pos.SquaredDistanceTo(GW::Agents().GetAgentByID(id)->pos) < GW::Constants::SqrRange::Spellcast) {
+                        if (player->pos.SquaredDistanceTo(agent->pos) < GW::Constants::SqrRange::Spellcast) {
                             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Life_Bond, id))
                                 return;
                         }
                     }
 
                     if (!HasABond(id, balthBonds)) {
-                        if (player->pos.SquaredDistanceTo(GW::Agents().GetAgentByID(id)->pos) < GW::Constants::SqrRange::Spellcast) {
+                        if (player->pos.SquaredDistanceTo(agent->pos) < GW::Constants::SqrRange::Spellcast) {
                             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Balthazars_Spirit, id))
                                 return;
                         }
                     }
                 }
                 else if (!HasABond(id, protBonds)) {
-                    if (player->pos.SquaredDistanceTo(GW::Agents().GetAgentByID(id)->pos) < GW::Constants::SqrRange::Spellcast) {
+                    if (player->pos.SquaredDistanceTo(agent->pos) < GW::Constants::SqrRange::Spellcast) {
                         if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Protective_Bond, id))
                             return;
                     }
                     else {
-                        GW::Agents().Move(GW::Agents().GetAgentByID(id)->pos);
+                        GW::Agents().Move(agent->pos);
                         return;
                     }
                 }
-            }
-        }
-
-        for (auto p : players) {
-            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
-
-            if (id == player->Id)
-                continue;
-
-            auto agent = GW::Agents().GetAgentByID(id);
-
-            if (agent && agent->HP < 0.5f && agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Infuse_Health, agent->Id))
-                    return;
             }
         }
 
