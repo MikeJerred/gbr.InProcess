@@ -84,6 +84,9 @@ namespace gbr::InProcess {
                                 if (agentId == emo->Id)
                                     continue;
 
+                                if (agentId == player->Id)
+                                    continue;
+
                                 auto agent = GW::Agents().GetAgentByID(agentId);
                                 auto agentToEmo = emo->pos.SquaredDistanceTo(agent->pos);
 
@@ -103,7 +106,7 @@ namespace gbr::InProcess {
             }
         }
 
-        if (id) {
+        if (id && id != player->Id) {
             auto agent = agents[id];
             if (agent) {
                 if (!agent->GetIsDead()) {
@@ -174,10 +177,7 @@ namespace gbr::InProcess {
 
     void SpikerHandler::SpikeTarget(GW::Agent* target) {
         auto overloadTargets = GetOtherEnemiesInRange(target, GW::Constants::SqrRange::Adjacent, [](GW::Agent* a, GW::Agent* b) {
-            if (a == b)
-                return false;
-
-            if ((a->Skill > 0 && b->Skill == 0) || (a->Skill == 0 && b->Skill > 0)) {
+            if ((a->Skill > 0) != (b->Skill > 0)) {
                 return a->Skill > 0;
             }
 
@@ -292,10 +292,7 @@ namespace gbr::InProcess {
 
     void SpikerHandler::SpikeAsESurge(GW::Agent* target, GW::Agent* overloadTarget) {
         auto esurgeTargets = GetEnemiesInRange(target, GW::Constants::SqrRange::Nearby, [](GW::Agent* a, GW::Agent* b) {
-            if (a == b)
-                return false;
-
-            if ((HasHighEnergy(a) && !HasHighEnergy(b)) || (!HasHighEnergy(a) && HasHighEnergy(b))) {
+            if (HasHighEnergy(a) != HasHighEnergy(b)) {
                 return HasHighEnergy(a);
             }
 
@@ -305,10 +302,7 @@ namespace gbr::InProcess {
             target,
             GW::Constants::SqrRange::Nearby,
             [](GW::Agent* a, GW::Agent* b) {
-                if (a == b)
-                    return false;
-
-                if ((HasHighAttackRate(a) && !HasHighAttackRate(b)) || (!HasHighAttackRate(a) && HasHighAttackRate(b))) {
+                if (HasHighAttackRate(a) != HasHighAttackRate(b)) {
                     return HasHighAttackRate(a);
                 }
 
@@ -465,6 +459,7 @@ namespace gbr::InProcess {
         case GW::Constants::ModelID::DoA::StygianLordNecro:
         case GW::Constants::ModelID::DoA::AnguishTitan:
         case GW::Constants::ModelID::DoA::DespairTitan:
+        case GW::Constants::ModelID::DoA::RageTitan:
         case GW::Constants::ModelID::DoA::TorturewebDryder:
         case GW::Constants::ModelID::DoA::GreaterDreamRider:
             return true;
@@ -497,6 +492,30 @@ namespace gbr::InProcess {
         case GW::Constants::ModelID::DoA::StygianLordRanger:
         case GW::Constants::ModelID::DoA::FuryTitan:
         //case GW::Constants::ModelID::DoA::DementiaTitan:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    bool SpikerHandler::UsesSpellsOnAllies(GW::Agent* agent) {
+        switch (agent->PlayerNumber) {
+        case GW::Constants::ModelID::DoA::MargoniteAnurDabi:
+        case GW::Constants::ModelID::DoA::MargoniteAnurKaya:
+        case GW::Constants::ModelID::DoA::MargoniteAnurSu:
+        case GW::Constants::ModelID::DoA::MindTormentor:
+        case GW::Constants::ModelID::DoA::SoulTormentor:
+        case GW::Constants::ModelID::DoA::WaterTormentor:
+        case GW::Constants::ModelID::DoA::VeilMindTormentor:
+        case GW::Constants::ModelID::DoA::VeilSoulTormentor:
+        case GW::Constants::ModelID::DoA::VeilWaterTormentor:
+        case GW::Constants::ModelID::DoA::StygianLordEle:
+        case GW::Constants::ModelID::DoA::StygianLordMesmer:
+        case GW::Constants::ModelID::DoA::StygianLordNecro:
+        case GW::Constants::ModelID::DoA::DespairTitan:
+        case GW::Constants::ModelID::DoA::RageTitan:
+        case GW::Constants::ModelID::DoA::TorturewebDryder:
+        case GW::Constants::ModelID::DoA::GreaterDreamRider:
             return true;
         default:
             return false;

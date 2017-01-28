@@ -27,7 +27,7 @@ BOOL WINAPI DllMain(_In_ HMODULE hModule, _In_ DWORD reason, _In_opt_ LPVOID res
         CreateThread(0, 0, (LPTHREAD_START_ROUTINE)Start, hModule, 0, 0);
         break;
     case DLL_PROCESS_DETACH:
-        GW::Api::Destruct();
+        Root::Quit();
         break;
     }
 

@@ -45,6 +45,29 @@ namespace gbr::InProcess {
 
         auto players = partyInfo->players;
 
+        auto veilEffect = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Demonic_Miasma);
+        bool isVeil = veilEffect.SkillId > 0;
+
+        auto foundryEffect = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Enduring_Torment);
+        bool isFoundry = foundryEffect.SkillId > 0;
+
+        static long long waitUntilToPing = 0;
+        if (isFoundry && (waitUntilToPing - currentTime) <= 0) {
+            for (auto agent : GW::Agents().GetAgentArray()) {
+                if (agent
+                    && !agent->GetIsDead()
+                    && !agent->IsPlayer()
+                    && agent->Allegiance == 3
+                    && agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Compass) {
+
+                    GW::Agents().CallTarget(agent);
+                    break;
+                }
+            }
+
+            waitUntilToPing = currentTime + 5000;
+        }
+
         auto blessedAura = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Blessed_Aura);
         if (blessedAura.SkillId == 0) {
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Blessed_Aura, player->Id))
@@ -73,7 +96,7 @@ namespace gbr::InProcess {
         if (tagetId) {
             auto agent = GW::Agents().GetAgentByID(tagetId);
 
-            if (agent && agent->GetIsDead() && agent->IsPlayer()) {
+            if (agent && agent->GetIsDead() && agent->IsPlayer() && agent->Id != player->Id) {
                 if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
                     if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Rebirth, tagetId))
                         return;
@@ -102,13 +125,11 @@ namespace gbr::InProcess {
             }
         }
 
-        auto veilEffect = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Demonic_Miasma);
-        bool isVeil = veilEffect.SkillId > 0;
-
         // if we can find the emo, see if we need to seed
         if (emo) {
             int lowHpCount = 0;
             bool tankIsLow = false;
+            bool emoIsLow = false;
             GW::Agent* target = nullptr;
 
             for (auto p : players) {
@@ -119,13 +140,17 @@ namespace gbr::InProcess {
                     if (agent->HP < 0.7f)
                         tankIsLow = true;
                 }
+                else if (agent->Id == emo->Id) {
+                    if (agent->HP < 0.4f)
+                        emoIsLow = true;
+                }
                 else if (agent && agent->HP < 0.5f) {
                     target = agent;
                     lowHpCount++;
                 }
             }
 
-            if (tankIsLow || lowHpCount > 2) {
+            if (tankIsLow || emoIsLow || lowHpCount > 2) {
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Seed_of_Life, emo->Id))
                     return;
             }
@@ -185,12 +210,21 @@ namespace gbr::InProcess {
                 return;
         }
 
-        if (player->Energy < 0.5f || player->HP < 0.5f) {
-            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Spirit_Bond, player->Id))
-                return;
+        if (player->Energy < 0.5f || player->HP < 0.45f) {
+            auto ether = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Ether_Renewal);
 
-            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Burning_Speed, player->Id))
-                return;
+            if (ether.SkillId > 0) {
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Spirit_Bond, player->Id))
+                    return;
+
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Burning_Speed, player->Id))
+                    return;
+            }
+            else if (player->HP < 0.45f) {
+                SkillUtility::TryUseSkill(GW::Constants::SkillID::Spirit_Bond, player->Id);
+            }
+
+            return;
         }
 
         GW::Agent* tank = nullptr;
@@ -216,8 +250,8 @@ namespace gbr::InProcess {
 
             auto distance = agent->pos.SquaredDistanceTo(player->pos);
 
-            if ((id == tank->Id && distance < GW::Constants::SqrRange::Earshot)
-                || distance < GW::Constants::SqrRange::Spellcast) {
+            if ((distance < GW::Constants::SqrRange::Earshot)
+                || (id != tank->Id && distance < GW::Constants::SqrRange::Spellcast)) {
 
                 if (agent->HP < 0.5f && SkillUtility::TryUseSkill(GW::Constants::SkillID::Infuse_Health, agent->Id))
                     return;
@@ -230,6 +264,9 @@ namespace gbr::InProcess {
         // ensure the emo doesn't get stuck if he stops moving (since when not moving he spams spirit bond + burning speed)
         auto moveToPos = gbr::Shared::Commands::MoveTo::GetPos();
         if (moveToPos != GW::Maybe<GW::GamePos>::Nothing()) {
+            if (!player->GetIsMoving())
+                GW::Agents().Move(moveToPos.Value());
+
             return;
         }
 

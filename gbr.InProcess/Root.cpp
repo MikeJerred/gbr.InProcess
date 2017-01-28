@@ -72,6 +72,8 @@ namespace gbr::InProcess {
         if (instance)
             delete instance;
 
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
         GW::Api::Destruct();
         FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
     }
