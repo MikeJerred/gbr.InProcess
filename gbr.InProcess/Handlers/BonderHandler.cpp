@@ -40,7 +40,7 @@ namespace gbr::InProcess {
 
         auto player = GW::Agents().GetPlayer();
         auto partyInfo = GW::Partymgr().GetPartyInfo();
-        if (!player || player->GetIsDead() || !partyInfo || !partyInfo->players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
+        if (!player || player->GetIsDead() || !partyInfo || !partyInfo->players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting || !GW::Map().IsMapLoaded())
             return;
 
         auto players = partyInfo->players;
@@ -185,6 +185,11 @@ namespace gbr::InProcess {
             return;
 
         sleepUntil = currentTime + 10;
+
+        if (!GW::Map().IsMapLoaded()) {
+            gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            return;
+        }
 
         auto player = GW::Agents().GetPlayer();
         auto partyInfo = GW::Partymgr().GetPartyInfo();

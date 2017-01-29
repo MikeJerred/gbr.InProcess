@@ -33,6 +33,11 @@ namespace gbr::InProcess {
 
         sleepUntil = currentTime + 10;
 
+        if (!GW::Map().IsMapLoaded()) {
+            gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            return;
+        }
+
         auto player = GW::Agents().GetPlayer();
         auto agents = GW::Agents().GetAgentArray();
         auto partyInfo = GW::Partymgr().GetPartyInfo();
@@ -69,10 +74,8 @@ namespace gbr::InProcess {
                         auto distanceToEmo = emo->pos.SquaredDistanceTo(player->pos);
 
                         if (distanceToEmo < GW::Constants::SqrRange::Spellcast) {
-                            if (distanceToEmo > GW::Constants::SqrRange::Area) {
-                                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, emo->Id))
-                                    return;
-                            }
+                            if (distanceToEmo > GW::Constants::SqrRange::Area && SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, emo->Id))
+                                return;
                         }
                         else {
                             for (auto p : players) {
@@ -113,7 +116,6 @@ namespace gbr::InProcess {
                     if (agent->Allegiance == 3) {
                         // kill the enemy
                         if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                            GW::Agents().Move(player->pos); // stop moving
                             SpikeTarget(agent);
                         }
                         else {
