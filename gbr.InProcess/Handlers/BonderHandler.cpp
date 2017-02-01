@@ -38,6 +38,12 @@ namespace gbr::InProcess {
 
         sleepUntil = currentTime + 10;
 
+        if (!GW::Map().IsMapLoaded()) {
+            gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            sleepUntil += 1000;
+            return;
+        }
+
         auto player = GW::Agents().GetPlayer();
         auto partyInfo = GW::Partymgr().GetPartyInfo();
         if (!player || player->GetIsDead() || !partyInfo || !partyInfo->players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting || !GW::Map().IsMapLoaded())
@@ -114,8 +120,7 @@ namespace gbr::InProcess {
             auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
             auto agent = GW::Agents().GetAgentByID(id);
 
-            if (agent) {
-
+            if (agent && !agent->GetIsDead()) {
                 if (agent->Primary == (BYTE)GW::Constants::Profession::Elementalist && agent->Secondary == (BYTE)GW::Constants::Profession::Monk) {
                     emo = agent;
                 }
@@ -188,6 +193,7 @@ namespace gbr::InProcess {
 
         if (!GW::Map().IsMapLoaded()) {
             gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            sleepUntil += 1000;
             return;
         }
 
@@ -236,7 +242,7 @@ namespace gbr::InProcess {
         for (auto p : players) {
             auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
             auto agent = GW::Agents().GetAgentByID(id);
-            if (agent && (agent->Primary == (BYTE)GW::Constants::Profession::Ranger || agent->Primary == (BYTE)GW::Constants::Profession::Assassin)) {
+            if (agent && !agent->GetIsDead() && (agent->Primary == (BYTE)GW::Constants::Profession::Ranger || agent->Primary == (BYTE)GW::Constants::Profession::Assassin)) {
                 tank = agent;
                 break;
             }

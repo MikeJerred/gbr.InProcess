@@ -35,6 +35,7 @@ namespace gbr::InProcess {
 
         if (!GW::Map().IsMapLoaded()) {
             gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            sleepUntil += 1000;
             return;
         }
 
@@ -462,6 +463,7 @@ namespace gbr::InProcess {
         case GW::Constants::ModelID::DoA::AnguishTitan:
         case GW::Constants::ModelID::DoA::DespairTitan:
         case GW::Constants::ModelID::DoA::RageTitan:
+        case GW::Constants::ModelID::DoA::RageTitan2:
         case GW::Constants::ModelID::DoA::TorturewebDryder:
         case GW::Constants::ModelID::DoA::GreaterDreamRider:
             return true;
@@ -493,7 +495,8 @@ namespace gbr::InProcess {
         case GW::Constants::ModelID::DoA::StygianLordDerv:
         case GW::Constants::ModelID::DoA::StygianLordRanger:
         case GW::Constants::ModelID::DoA::FuryTitan:
-        //case GW::Constants::ModelID::DoA::DementiaTitan:
+        case GW::Constants::ModelID::DoA::DementiaTitan:
+        case GW::Constants::ModelID::DoA::DementiaTitan2:
             return true;
         default:
             return false;
@@ -516,6 +519,7 @@ namespace gbr::InProcess {
         case GW::Constants::ModelID::DoA::StygianLordNecro:
         case GW::Constants::ModelID::DoA::DespairTitan:
         case GW::Constants::ModelID::DoA::RageTitan:
+        case GW::Constants::ModelID::DoA::RageTitan2:
         case GW::Constants::ModelID::DoA::TorturewebDryder:
         case GW::Constants::ModelID::DoA::GreaterDreamRider:
             return true;

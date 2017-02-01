@@ -63,7 +63,7 @@ namespace gbr::InProcess {
             if (ReadFile(pipeHandle, buffer, bufferSize, &bytesRead, NULL)) {
                 if (BaseCommand::ExecuteCommand((BaseCommand::BaseRequest*)buffer)) {
                     //FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
-                    Root::Quit();
+                    //Root::Quit();
                     return;
                 }
             }

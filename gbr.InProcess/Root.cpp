@@ -61,7 +61,7 @@ namespace gbr::InProcess {
             Sleep(250);
 
             if (GetAsyncKeyState(VK_END) & 1) {
-                mustQuit = true;
+                //mustQuit = true;
             }
 
             if (GetAsyncKeyState(VK_HOME) & 1) {

@@ -11,7 +11,8 @@ namespace gbr::InProcess {
         GW::Constants::ItemID::StygianGem,
         GW::Constants::ItemID::TormentGem,
         GW::Constants::ItemID::TitanGem,
-        GW::Constants::ItemID::MargoniteGem
+        GW::Constants::ItemID::MargoniteGem,
+        GW::Constants::ItemID::LunarToken
     };
 
     DropsHandler::DropsHandler() {
