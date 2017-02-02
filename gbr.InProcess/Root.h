@@ -7,6 +7,7 @@
 #include "Handlers/CommandHandler.h"
 #include "Handlers/DropsHandler.h"
 #include "Handlers/SpikerHandler.h"
+#include "Utilities/LogUtility.h"
 #include "Utilities/PlayerUtility.h"
 
 namespace gbr::InProcess {

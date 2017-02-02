@@ -29,6 +29,9 @@
       <Filter>Utilities</Filter>
     </ClCompile>
     <ClCompile Include="Root.cpp" />
+    <ClCompile Include="Utilities\LogUtility.cpp">
+      <Filter>Utilities</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utilities\SkillUtility.h">
@@ -50,5 +53,8 @@
       <Filter>Utilities</Filter>
     </ClInclude>
     <ClInclude Include="Root.h" />
+    <ClInclude Include="Utilities\LogUtility.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -120,6 +120,7 @@
     <ClCompile Include="Handlers\SpikerHandler.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Root.cpp" />
+    <ClCompile Include="Utilities\LogUtility.cpp" />
     <ClCompile Include="Utilities\PlayerUtility.cpp" />
     <ClCompile Include="Utilities\SkillUtility.cpp" />
   </ItemGroup>
@@ -137,6 +138,7 @@
     <ClInclude Include="Handlers\DropsHandler.h" />
     <ClInclude Include="Handlers\SpikerHandler.h" />
     <ClInclude Include="Root.h" />
+    <ClInclude Include="Utilities\LogUtility.h" />
     <ClInclude Include="Utilities\PlayerUtility.h" />
     <ClInclude Include="Utilities\SkillUtility.h" />
   </ItemGroup>
