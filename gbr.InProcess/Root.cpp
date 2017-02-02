@@ -8,7 +8,7 @@ namespace gbr::InProcess {
         auto playerName = GW::Agents().GetPlayerNameByLoginNumber(GW::Agents().GetPlayer()->LoginNumber);
         auto playerType = Utilities::PlayerUtility::GetPlayerType();
 
-		Utilities::LogUtility::Init(playerName);
+        Utilities::LogUtility::Init(playerName);
 
         commandHandler = new CommandHandler(hModule, playerName);
         dropsHandler = new DropsHandler();
@@ -43,7 +43,7 @@ namespace gbr::InProcess {
         if (spikerHandler)
             delete spikerHandler;
 
-		Utilities::LogUtility::Close();
+        Utilities::LogUtility::Close();
     }
 
     void Root::ThreadStart(HMODULE hModule) {
