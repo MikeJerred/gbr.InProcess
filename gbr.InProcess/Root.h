@@ -7,6 +7,7 @@
 #include "Handlers/CommandHandler.h"
 #include "Handlers/DropsHandler.h"
 #include "Handlers/SpikerHandler.h"
+#include "Handlers/TradeHandler.h"
 #include "Utilities/LogUtility.h"
 #include "Utilities/PlayerUtility.h"
 
@@ -21,6 +22,7 @@ namespace gbr::InProcess {
         CommandHandler* commandHandler;
         DropsHandler* dropsHandler;
         SpikerHandler* spikerHandler;
+        TradeHandler* tradeHandler;
 
         Root(HMODULE hModule);
         ~Root();

@@ -9,7 +9,7 @@ namespace gbr::InProcess::Utilities {
     void LogUtility::Init(std::wstring charName) {
         auto fileName = L"log - " + charName + L".txt";
 
-        _wfopen_s(&logFile, fileName.c_str(), L"w");
+        //_wfopen_s(&logFile, fileName.c_str(), L"w"); // comment out to stop logging
     }
 
     void LogUtility::Close() {

@@ -118,6 +118,7 @@
     <ClCompile Include="Handlers\CommandHandler.cpp" />
     <ClCompile Include="Handlers\DropsHandler.cpp" />
     <ClCompile Include="Handlers\SpikerHandler.cpp" />
+    <ClCompile Include="Handlers\TradeHandler.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Root.cpp" />
     <ClCompile Include="Utilities\LogUtility.cpp" />
@@ -137,6 +138,7 @@
     <ClInclude Include="Handlers\CommandHandler.h" />
     <ClInclude Include="Handlers\DropsHandler.h" />
     <ClInclude Include="Handlers\SpikerHandler.h" />
+    <ClInclude Include="Handlers\TradeHandler.h" />
     <ClInclude Include="Root.h" />
     <ClInclude Include="Utilities\LogUtility.h" />
     <ClInclude Include="Utilities\PlayerUtility.h" />

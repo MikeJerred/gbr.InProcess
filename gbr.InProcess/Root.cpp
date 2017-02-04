@@ -12,6 +12,7 @@ namespace gbr::InProcess {
 
         commandHandler = new CommandHandler(hModule, playerName);
         dropsHandler = new DropsHandler();
+        tradeHandler = new TradeHandler();
 
         switch (playerType) {
         case Utilities::PlayerType::VoR:
@@ -42,6 +43,9 @@ namespace gbr::InProcess {
 
         if (spikerHandler)
             delete spikerHandler;
+
+        if (tradeHandler)
+            delete tradeHandler;
 
         Utilities::LogUtility::Close();
     }

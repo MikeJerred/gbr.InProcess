@@ -2,6 +2,7 @@
 #include <thread>
 #include <GWCA/GWCA.h>
 #include <GWCA/Managers/ItemMgr.h>
+#include <GWCA/Managers/SkillbarMgr.h>
 #include <gbr.Shared/Commands/MoveTo.h>
 
 #include "DropsHandler.h"
@@ -36,13 +37,15 @@ namespace gbr::InProcess {
         sleepUntil = currentTime + 250;
 
         auto player = GW::Agents().GetPlayer();
+        if (!player)
+            return;
 
         auto pos = gbr::Shared::Commands::MoveTo::GetPos();
         if (pos != GW::Maybe<GW::GamePos>::Nothing()) {
             if (player->pos.SquaredDistanceTo(pos.Value()) < GW::Constants::SqrRange::Adjacent) {
                 gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
             }
-            else if (player->Skill == 0) {
+            else if (!GW::Skillbar::GetPlayerSkillbar().Casting) {
                 GW::Agents().Move(pos.Value());
             }
 

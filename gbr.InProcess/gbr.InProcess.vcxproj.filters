@@ -32,6 +32,9 @@
     <ClCompile Include="Utilities\LogUtility.cpp">
       <Filter>Utilities</Filter>
     </ClCompile>
+    <ClCompile Include="Handlers\TradeHandler.cpp">
+      <Filter>Handlers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utilities\SkillUtility.h">
@@ -55,6 +58,9 @@
     <ClInclude Include="Root.h" />
     <ClInclude Include="Utilities\LogUtility.h">
       <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="Handlers\TradeHandler.h">
+      <Filter>Handlers</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
