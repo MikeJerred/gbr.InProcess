@@ -1,5 +1,6 @@
 #include <GWCA/GWCA.h>
 #include <GWCA/Managers/EffectMgr.h>
+#include <GWCA/Managers/ItemMgr.h>
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 #include <GWCA/Utilities/Maybe.h>
@@ -116,20 +117,18 @@ namespace gbr::InProcess {
 
         LogUtility::Log(L"We don't need to cast spirits!");
 
-        auto tagetId = gbr::Shared::Commands::AggressiveMoveTo::GetTargetAgentId();
-        if (tagetId) {
-            auto agent = GW::Agents().GetAgentByID(tagetId);
-
-            if (agent && agent->GetIsDead() && agent->IsPlayer() && agent->Id != player->Id) {
-                if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                    LogUtility::Log(L"Using rebirth");
-                    if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Rebirth, tagetId))
-                        return;
-                }
-                else {
-                    LogUtility::Log(L"Moving to rez player...");
-                    GW::Agents().Move(agent->pos);
-                    return;
+        LogUtility::Log(L"See if we need to rez anyone!");
+        for (auto agent : agents) {
+            if (agent && agent->GetIsDead() && agent->IsPlayer() && agent->Id != player->Id && agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
+                auto buffs = GW::Effects().GetPlayerBuffArray();
+                if (buffs.valid()) {
+                    for (auto buff : buffs) {
+                        if (buff.SkillId == (DWORD)GW::Constants::SkillID::Unyielding_Aura) {
+                            sleepUntil += 500;
+                            GW::Effects().DropBuff(buff.BuffId);
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -199,22 +198,57 @@ namespace gbr::InProcess {
             }
         }
 
-        LogUtility::Log(L"See if we need to cast life barrier...");
-        if (tank && player->pos.SquaredDistanceTo(tank->pos) < GW::Constants::SqrRange::Spellcast) {
-            bool hasBuff = false;
-            auto buffs = GW::Effects().GetPlayerBuffArray();
-            if (buffs.valid()) {
-                for (auto buff : buffs) {
-                    if (buff.SkillId == (DWORD)GW::Constants::SkillID::Life_Barrier && buff.TargetAgentId == tank->Id) {
-                        hasBuff = true;
-                        break;
-                    }
+        LogUtility::Log(L"See if we need to cast bonds...");
+        auto buffs = GW::Effects().GetPlayerBuffArray();
+        if (buffs.valid()) {
+            std::vector<GW::Buff> lifeBonds;
+            auto hasUa = false;
+
+            for (auto buff : buffs) {
+                switch (buff.SkillId) {
+                case (DWORD)GW::Constants::SkillID::Life_Bond:
+                    lifeBonds.push_back(buff);
+                    break;
+                case (DWORD)GW::Constants::SkillID::Unyielding_Aura:
+                    hasUa = true;
+                    break;
                 }
             }
 
-            LogUtility::Log(L"Using Life Barrier");
-            if (!hasBuff && SkillUtility::TryUseSkill(GW::Constants::SkillID::Life_Barrier, tank->Id))
+            if (!hasUa && SkillUtility::TryUseSkill(GW::Constants::SkillID::Unyielding_Aura, player->Id))
                 return;
+
+            for (auto p : players) {
+                auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+
+                if (id == player->Id)
+                    continue;
+
+                auto agent = GW::Agents().GetAgentByID(id);
+                if (!agent || agent->GetIsDead())
+                    continue;
+
+                if (tank && tank->Id == id) {
+                    LogUtility::Log(L"Ensure tank is bonded");
+                    if (!HasABond(id, lifeBonds)) {
+                        if (player->pos.SquaredDistanceTo(agent->pos) < GW::Constants::SqrRange::Spellcast) {
+                            LogUtility::Log(L"Using life bond on tank");
+                            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Life_Bond, id))
+                                return;
+                        }
+                    }
+                }
+                else if (emo && emo->Id == id) {
+                    LogUtility::Log(L"Ensure emo is bonded");
+                    if (!HasABond(id, lifeBonds)) {
+                        if (player->pos.SquaredDistanceTo(agent->pos) < GW::Constants::SqrRange::Spellcast) {
+                            LogUtility::Log(L"Using life bond on  emo");
+                            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Life_Bond, id))
+                                return;
+                        }
+                    }
+                }
+            }
         }
 
         LogUtility::Log(L"Nothing to do");
@@ -297,22 +331,28 @@ namespace gbr::InProcess {
                 if (moveToPos != GW::Maybe<GW::GamePos>::Nothing()) {
                     LogUtility::Log(L"Try to EE for energy and to help movement");
 
-                    auto distanceToPos = player->pos.SquaredDistanceTo(moveToPos.Value());
+                    auto bestDistanceToPos = player->pos.SquaredDistanceTo(moveToPos.Value());
+                    GW::Agent* bestEETarget = nullptr;
 
                     for (auto p : players) {
                         auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
                         auto agent = GW::Agents().GetAgentByID(id);
+                        auto distanceToPos = agent->pos.SquaredDistanceTo(moveToPos.Value());
                         if (agent
                             && !agent->GetIsDead()
                             && agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast
-                            && agent->pos.SquaredDistanceTo(moveToPos.Value()) < distanceToPos) {
+                            && distanceToPos < bestDistanceToPos) {
 
-                            LogUtility::Log(L"Found a suitable EE target!");
-                            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, agent->Id))
-                                return;
+                            bestEETarget = agent;
+                            bestDistanceToPos = distanceToPos;
                         }
                     }
 
+                    if (bestEETarget) {
+                        LogUtility::Log(L"Found a suitable EE target!");
+                        if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, bestEETarget->Id))
+                            return;
+                    }
                 }
 
                 LogUtility::Log(L"Spam for energy & HP");
@@ -383,7 +423,7 @@ namespace gbr::InProcess {
                 || (distance < GW::Constants::SqrRange::Spellcast 
                     && (!tank || id != tank->Id))) {
 
-                LogUtility::Log(L"Healing other player");
+                LogUtility::Log(L"Seeing if other player needs to be healed");
                 if (agent->HP < 0.5f && SkillUtility::TryUseSkill(GW::Constants::SkillID::Infuse_Health, agent->Id))
                     return;
 
@@ -442,6 +482,14 @@ namespace gbr::InProcess {
                                 return;
                         }
                     }
+
+                    if (!HasABond(id, protBonds)) {
+                        if (player->pos.SquaredDistanceTo(agent->pos) < GW::Constants::SqrRange::Spellcast) {
+                            LogUtility::Log(L"Using prot bond on tank");
+                            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Protective_Bond, id))
+                                return;
+                        }
+                    }
                 }
                 else if (!HasABond(id, protBonds)) {
                     LogUtility::Log(L"Bonding others");
@@ -465,7 +513,7 @@ namespace gbr::InProcess {
             return;
         }
 
-        if (!player->GetIsMoving()) {
+        if (!player->GetIsMoving() && player->Energy < 0.9f) {
             LogUtility::Log(L"Nothing to do so spam skills for energy & HP");
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Spirit_Bond, player->Id))
                 return;
@@ -474,7 +522,7 @@ namespace gbr::InProcess {
                 return;
         }
 
-        LogUtility::Log(L"Nothing to do but we are moving so don't spam");
+        LogUtility::Log(L"Nothing to do but we are moving are have full energy so don't spam");
     }
 
     bool BonderHandler::HasABond(DWORD agentId, std::vector<GW::Buff> bonds) {

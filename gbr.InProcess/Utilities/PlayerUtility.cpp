@@ -14,12 +14,16 @@ namespace gbr::InProcess::Utilities {
 
             switch (skill.SkillId) {
             default: continue;
-            case (DWORD)GW::Constants::SkillID::Visions_of_Regret: return PlayerType::VoR;
+            case (DWORD)GW::Constants::SkillID::Visions_of_Regret:
+                return PlayerType::VoR;
             case (DWORD)GW::Constants::SkillID::Energy_Surge:
                 isEsurge = true;
                 break;
-            case (DWORD)GW::Constants::SkillID::Life_Barrier: return PlayerType::Monk;
-            case (DWORD)GW::Constants::SkillID::Ether_Renewal: return PlayerType::Emo;
+            case (DWORD)GW::Constants::SkillID::Unyielding_Aura:
+            case (DWORD)GW::Constants::SkillID::Life_Barrier:
+                return PlayerType::Monk;
+            case (DWORD)GW::Constants::SkillID::Ether_Renewal:
+                return PlayerType::Emo;
             }
         }
 
