@@ -14,8 +14,8 @@ namespace gbr::InProcess {
 
         void SpikeSingleTarget(GW::Agent* target);
         void SpikeTarget(GW::Agent* target);
-        void SpikeAsVoR(GW::Agent* target, GW::Agent* overloadTarget);
-        void SpikeAsESurge(GW::Agent* target, GW::Agent* overloadTarget);
+        void SpikeAsVoR(GW::Agent* target, GW::Agent* overloadTarget, GW::Agent* mistrustTarget);
+        void SpikeAsESurge(GW::Agent* target, GW::Agent* overloadTarget, GW::Agent* mistrustTarget);
 
         static DWORD GetQuestTakeDialog(DWORD quest) { return (quest << 8) | 0x800001; };
         static DWORD GetQuestUpdateDialog(DWORD quest) { return (quest << 8) | 0x800004; };

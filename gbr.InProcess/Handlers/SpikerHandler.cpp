@@ -187,26 +187,31 @@ namespace gbr::InProcess {
             return a->Id < b->Id;
         });
 
+        auto mistrustTargets = GetEnemiesInRange(
+            target,
+            GW::Constants::SqrRange::Nearby,
+            [](GW::Agent* a, GW::Agent* b) { return a->Id < b->Id; },
+            [](GW::Agent* a) { return UsesSpellsOnAllies(a); });
+
         if (overloadTargets.size() == 0) {
             SpikeSingleTarget(target);
         }
         else {
-
             switch (playerType) {
             case Utilities::PlayerType::VoR:
-                SpikeAsVoR(target, overloadTargets.size() > 4 ? overloadTargets[4] : target);
+                SpikeAsVoR(target, overloadTargets.size() > 4 ? overloadTargets[4] : target, mistrustTargets.size() > 4 ? mistrustTargets[4] : nullptr);
                 break;
             case Utilities::PlayerType::ESurge1:
-                SpikeAsESurge(target, overloadTargets.size() > 0 ? overloadTargets[0] : target);
+                SpikeAsESurge(target, overloadTargets.size() > 0 ? overloadTargets[0] : target, mistrustTargets.size() > 0 ? mistrustTargets[0] : nullptr);
                 break;
             case Utilities::PlayerType::ESurge2:
-                SpikeAsESurge(target, overloadTargets.size() > 1 ? overloadTargets[1] : target);
+                SpikeAsESurge(target, overloadTargets.size() > 1 ? overloadTargets[1] : target, mistrustTargets.size() > 1 ? mistrustTargets[1] : nullptr);
                 break;
             case Utilities::PlayerType::ESurge3:
-                SpikeAsESurge(target, overloadTargets.size() > 2 ? overloadTargets[2] : target);
+                SpikeAsESurge(target, overloadTargets.size() > 2 ? overloadTargets[2] : target, mistrustTargets.size() > 2 ? mistrustTargets[2] : nullptr);
                 break;
             case Utilities::PlayerType::ESurge4:
-                SpikeAsESurge(target, overloadTargets.size() > 3 ? overloadTargets[3] : target);
+                SpikeAsESurge(target, overloadTargets.size() > 3 ? overloadTargets[3] : target, mistrustTargets.size() > 3 ? mistrustTargets[3] : nullptr);
                 break;
             }
         }
@@ -256,7 +261,7 @@ namespace gbr::InProcess {
         }
     }
 
-    void SpikerHandler::SpikeAsVoR(GW::Agent* target, GW::Agent* overloadTarget) {
+    void SpikerHandler::SpikeAsVoR(GW::Agent* target, GW::Agent* overloadTarget, GW::Agent* mistrustTarget) {
         if (target->HP < 0.5f) {
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Finish_Him, target->Id))
                 return;
@@ -268,6 +273,9 @@ namespace gbr::InProcess {
         }
 
         if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Visions_of_Regret, target->Id))
+            return;
+
+        if (mistrustTarget && SkillUtility::TryUseSkill(GW::Constants::SkillID::Mistrust, mistrustTarget->Id))
             return;
 
         if (overloadTarget->Skill > 0) {
@@ -293,7 +301,7 @@ namespace gbr::InProcess {
             return;
     }
 
-    void SpikerHandler::SpikeAsESurge(GW::Agent* target, GW::Agent* overloadTarget) {
+    void SpikerHandler::SpikeAsESurge(GW::Agent* target, GW::Agent* overloadTarget, GW::Agent* mistrustTarget) {
         auto esurgeTargets = GetEnemiesInRange(target, GW::Constants::SqrRange::Nearby, [](GW::Agent* a, GW::Agent* b) {
             if (HasHighEnergy(a) != HasHighEnergy(b)) {
                 return HasHighEnergy(a);
@@ -304,13 +312,7 @@ namespace gbr::InProcess {
         auto wanderingTargets = GetEnemiesInRange(
             target,
             GW::Constants::SqrRange::Nearby,
-            [](GW::Agent* a, GW::Agent* b) {
-                if (HasHighAttackRate(a) != HasHighAttackRate(b)) {
-                    return HasHighAttackRate(a);
-                }
-
-                return a->Id < b->Id;
-            },
+            [](GW::Agent* a, GW::Agent* b) { return a->Id < b->Id; },
             [](GW::Agent* a) { return HasHighAttackRate(a); });
 
         GW::Agent* esurgeTarget;
@@ -344,6 +346,9 @@ namespace gbr::InProcess {
             return;
 
         if (wanderingTarget && SkillUtility::TryUseSkill(GW::Constants::SkillID::Wandering_Eye, wanderingTarget->Id))
+            return;
+
+        if (mistrustTarget && SkillUtility::TryUseSkill(GW::Constants::SkillID::Mistrust, mistrustTarget->Id))
             return;
 
         if (overloadTarget->Skill > 0) {
@@ -517,6 +522,7 @@ namespace gbr::InProcess {
         case GW::Constants::ModelID::DoA::StygianLordEle:
         case GW::Constants::ModelID::DoA::StygianLordMesmer:
         case GW::Constants::ModelID::DoA::StygianLordNecro:
+        case GW::Constants::ModelID::DoA::AnguishTitan:
         case GW::Constants::ModelID::DoA::DespairTitan:
         case GW::Constants::ModelID::DoA::RageTitan:
         case GW::Constants::ModelID::DoA::RageTitan2:
