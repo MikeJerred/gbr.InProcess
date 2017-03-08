@@ -8,7 +8,8 @@ namespace gbr::InProcess {
     class SpikerHandler {
     private:
         Utilities::PlayerType playerType;
-        GUID hookGuid;
+        DWORD hookId;
+        DWORD gameServerHookId;
 
         void Tick();
 

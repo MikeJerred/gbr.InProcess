@@ -9,7 +9,7 @@ namespace gbr::InProcess {
     class BonderHandler {
     private:
         Utilities::PlayerType playerType;
-        GUID hookGuid;
+        DWORD hookId;
 
         void TickMonk();
         void TickEmo();

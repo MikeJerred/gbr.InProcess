@@ -4,7 +4,7 @@
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 #include <GWCA/Utilities/Maybe.h>
-#include <gbr.Shared/Commands/AggressiveMoveTo.h>
+#include <gbr.Shared/Commands/PlaceSpirit.h>
 #include <gbr.Shared/Commands/MoveTo.h>
 
 #include "../Utilities/LogUtility.h"
@@ -17,19 +17,19 @@ namespace gbr::InProcess {
 
     BonderHandler::BonderHandler(Utilities::PlayerType playerType) : playerType(playerType) {
         if (playerType == Utilities::PlayerType::Monk) {
-            hookGuid = GW::Gamethread().AddPermanentCall([this]() {
+            hookId = GW::Gamethread().AddPermanentCall([this]() {
                 TickMonk();
             });
         }
         else if (playerType == Utilities::PlayerType::Emo) {
-            hookGuid = GW::Gamethread().AddPermanentCall([this]() {
+            hookId = GW::Gamethread().AddPermanentCall([this]() {
                 TickEmo();
             });
         }
     }
 
     BonderHandler::~BonderHandler() {
-        GW::Gamethread().RemovePermanentCall(hookGuid);
+        GW::Gamethread().RemovePermanentCall(hookId);
     }
 
     void BonderHandler::TickMonk() {
@@ -42,7 +42,7 @@ namespace gbr::InProcess {
         sleepUntil = currentTime + 10;
 
         if (!GW::Map().IsMapLoaded()) {
-            gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            gbr::Shared::Commands::MoveTo::ClearPos();
             sleepUntil += 1000;
             LogUtility::Log(L"Waiting for map load...");
             return;
@@ -95,8 +95,8 @@ namespace gbr::InProcess {
 
         LogUtility::Log(L"We have blessed aura!");
 
-        auto spiritPos = gbr::Shared::Commands::AggressiveMoveTo::GetSpiritPos();
-        if (spiritPos != GW::Maybe<GW::GamePos>::Nothing()) {
+        auto spiritPos = gbr::Shared::Commands::PlaceSpirit::GetSpiritPos();
+        if (spiritPos.HasValue()) {
             if (player->pos.SquaredDistanceTo(spiritPos.Value()) < GW::Constants::SqrRange::Adjacent) {
                 LogUtility::Log(L"Use EoE");
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Edge_of_Extinction, 0))
@@ -104,7 +104,7 @@ namespace gbr::InProcess {
 
                 LogUtility::Log(L"Use Winnowing");
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Winnowing, 0)) {
-                    gbr::Shared::Commands::AggressiveMoveTo::SetSpiritPos(GW::Maybe<GW::GamePos>::Nothing());
+                    gbr::Shared::Commands::PlaceSpirit::ClearSpiritPos();
                     return;
                 }
             }
@@ -264,7 +264,7 @@ namespace gbr::InProcess {
         sleepUntil = currentTime + 10;
 
         if (!GW::Map().IsMapLoaded()) {
-            gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            gbr::Shared::Commands::MoveTo::ClearPos();
             sleepUntil += 1000;
             return;
         }
@@ -328,7 +328,7 @@ namespace gbr::InProcess {
             auto ether = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Ether_Renewal);
 
             if (ether.SkillId > 0) {
-                if (moveToPos != GW::Maybe<GW::GamePos>::Nothing()) {
+                if (moveToPos.HasValue()) {
                     LogUtility::Log(L"Try to EE for energy and to help movement");
 
                     auto bestDistanceToPos = player->pos.SquaredDistanceTo(moveToPos.Value());
@@ -372,7 +372,7 @@ namespace gbr::InProcess {
 
         LogUtility::Log(L"We have decent energy and HP!");
 
-        if (moveToPos != GW::Maybe<GW::GamePos>::Nothing()) {
+        if (moveToPos.HasValue()) {
             LogUtility::Log(L"Try to EE to help movement");
 
             auto distanceToPos = player->pos.SquaredDistanceTo(moveToPos.Value());
@@ -506,7 +506,7 @@ namespace gbr::InProcess {
         }
 
         // ensure the emo doesn't get stuck if he stops moving (since when not moving he spams spirit bond + burning speed)
-        if (moveToPos != GW::Maybe<GW::GamePos>::Nothing()) {
+        if (moveToPos.HasValue()) {
             LogUtility::Log(L"Ensure we are moving...");
             GW::Agents().Move(moveToPos.Value());
 

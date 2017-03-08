@@ -18,13 +18,13 @@ namespace gbr::InProcess {
         state = State::Waiting;
         tradingItemIds = std::vector<DWORD>();
 
-        hookGuid = GW::Gamethread().AddPermanentCall([this]() {
+        hookId = GW::Gamethread().AddPermanentCall([this]() {
             Tick();
         });
     }
 
     TradeHandler::~TradeHandler() {
-        GW::Gamethread().RemovePermanentCall(hookGuid);
+        GW::Gamethread().RemovePermanentCall(hookId);
     }
 
     void TradeHandler::Tick() {

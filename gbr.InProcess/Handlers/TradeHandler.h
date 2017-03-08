@@ -13,7 +13,7 @@ namespace gbr::InProcess {
         };
 
         static std::vector<int> itemsToTrade;
-        GUID hookGuid;
+        DWORD hookId;
         State state;
         std::vector<DWORD> tradingItemIds;
 

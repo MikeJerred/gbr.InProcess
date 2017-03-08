@@ -5,8 +5,9 @@
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
-#include <gbr.Shared/Commands/AggressiveMoveTo.h>
+#include <gbr.Shared/Commands/InteractAgent.h>
 #include <gbr.Shared/Commands/MoveTo.h>
+#include <gbr.Shared/Commands/PlaceSpirit.h>
 
 #include "../Utilities/SkillUtility.h"
 #include "SpikerHandler.h"
@@ -15,13 +16,19 @@ namespace gbr::InProcess {
     using SkillUtility = Utilities::SkillUtility;
 
     SpikerHandler::SpikerHandler(Utilities::PlayerType playerType) : playerType(playerType) {
-        hookGuid = GW::Gamethread().AddPermanentCall([this]() {
+        hookId = GW::Gamethread().AddPermanentCall([this]() {
             Tick();
+        });
+
+        gameServerHookId = GW::StoC().AddGameServerEvent<GW::Packet::StoC::P114_DialogButton>([](GW::Packet::StoC::P114_DialogButton* packet) {
+            GW::Agents().Dialog(packet->dialog_id);
+            return false;
         });
     }
 
     SpikerHandler::~SpikerHandler() {
-        GW::Gamethread().RemovePermanentCall(hookGuid);
+        GW::Gamethread().RemovePermanentCall(hookId);
+        GW::StoC().RemoveGameServerEvent<GW::Packet::StoC::P114_DialogButton>(gameServerHookId);
     }
 
     void SpikerHandler::Tick() {
@@ -34,7 +41,7 @@ namespace gbr::InProcess {
         sleepUntil = currentTime + 10;
 
         if (!GW::Map().IsMapLoaded()) {
-            gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+            gbr::Shared::Commands::MoveTo::ClearPos();
             sleepUntil += 1000;
             return;
         }
@@ -48,7 +55,7 @@ namespace gbr::InProcess {
 
         auto players = partyInfo->players;
 
-        auto id = gbr::Shared::Commands::AggressiveMoveTo::GetTargetAgentId();
+        auto interactAgentId = gbr::Shared::Commands::InteractAgent::GetAgentId();
 
         GW::Agent* emo = nullptr;
         GW::Agent* tank = nullptr;
@@ -67,9 +74,9 @@ namespace gbr::InProcess {
         }
 
         auto movePos = gbr::Shared::Commands::MoveTo::GetPos();
-        if (movePos != GW::Maybe<GW::GamePos>::Nothing()) {
-            if (id) {
-                auto agent = agents[id];
+        if (movePos.HasValue()) {
+            if (interactAgentId.HasValue()) {
+                auto agent = agents[interactAgentId.Value()];
                 if (!agent || agent->GetIsDead() || !agent->IsNPC()) {
                     if (emo) {
                         auto distanceToEmo = emo->pos.SquaredDistanceTo(player->pos);
@@ -110,8 +117,8 @@ namespace gbr::InProcess {
             }
         }
 
-        if (id && id != player->Id) {
-            auto agent = agents[id];
+        if (interactAgentId.HasValue() && interactAgentId.Value() != player->Id) {
+            auto agent = agents[interactAgentId.Value()];
             if (agent) {
                 if (!agent->GetIsDead()) {
                     if (agent->Allegiance == 3) {
@@ -129,15 +136,8 @@ namespace gbr::InProcess {
                         return;
                     }
                     else if (agent->IsNPC()) {
-                        if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Nearby) {
-                            AcceptNextDialog();
-                            GW::Agents().GoNPC(agent);
-                            return;
-                        }
-                        else {
-                            GW::Agents().GoNPC(agent);
-                            return;
-                        }
+                        GW::Agents().GoNPC(agent);
+                        return;
                     }
                     else if (agent->IsPlayer()) {
                         // jump to target
@@ -167,7 +167,7 @@ namespace gbr::InProcess {
                     }
                 }
 
-                gbr::Shared::Commands::AggressiveMoveTo::SetTargetAgentId(0);
+                gbr::Shared::Commands::InteractAgent::ClearAgentId();
             }
         }
 
@@ -386,18 +386,6 @@ namespace gbr::InProcess {
 
     void SpikerHandler::RezTarget(GW::Agent* target) {
         SkillUtility::TryUseSkill(GW::Constants::SkillID::Rebirth, target->Id);
-    }
-
-    void SpikerHandler::AcceptNextDialog() {
-        static bool queued = false;
-        if (!queued) {
-            queued = true;
-            GW::StoC().AddSingleGameServerEvent<GW::Packet::StoC::P114_DialogButton>([](GW::Packet::StoC::P114_DialogButton* packet) {
-                queued = false;
-                GW::Agents().Dialog(packet->dialog_id);
-                return false;
-            });
-        }
     }
 
     std::vector<GW::Agent*> SpikerHandler::GetOtherEnemiesInRange(GW::Agent* target, float rangeSq, std::function<bool(GW::Agent*, GW::Agent*)> sort /*= nullptr*/) {

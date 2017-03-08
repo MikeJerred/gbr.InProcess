@@ -17,13 +17,13 @@ namespace gbr::InProcess {
     };
 
     DropsHandler::DropsHandler() {
-        hookGuid = GW::Gamethread().AddPermanentCall([]() {
+        hookId = GW::Gamethread().AddPermanentCall([]() {
             Tick();
         });
     }
 
     DropsHandler::~DropsHandler() {
-        GW::Gamethread().RemovePermanentCall(hookGuid);
+        GW::Gamethread().RemovePermanentCall(hookId);
     }
 
     void DropsHandler::Tick() {
@@ -41,9 +41,9 @@ namespace gbr::InProcess {
             return;
 
         auto pos = gbr::Shared::Commands::MoveTo::GetPos();
-        if (pos != GW::Maybe<GW::GamePos>::Nothing()) {
+        if (pos.HasValue()) {
             if (player->pos.SquaredDistanceTo(pos.Value()) < GW::Constants::SqrRange::Adjacent) {
-                gbr::Shared::Commands::MoveTo::SetPos(GW::Maybe<GW::GamePos>::Nothing());
+                gbr::Shared::Commands::MoveTo::ClearPos();
             }
             else if (!GW::Skillbar::GetPlayerSkillbar().Casting) {
                 GW::Agents().Move(pos.Value());

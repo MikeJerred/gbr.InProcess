@@ -69,8 +69,12 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(SolutionDir);$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)GWCA;$(ProjectDir)Dependencies;$(SolutionDir);$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)Dependencies\GWCA;$(ProjectDir)Dependencies;$(SolutionDir);$(SolutionDir)Dependencies;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)Dependencies\GWCA;$(ProjectDir)Dependencies;$(SolutionDir);$(OutDir);$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>$(SolutionDir)Dependencies\GWCA;$(ProjectDir)Dependencies;$(SolutionDir);$(SolutionDir)Dependencies;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)Dependencies\GWCA;$(ProjectDir)Dependencies;$(SolutionDir);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -126,14 +130,6 @@
     <ClCompile Include="Utilities\SkillUtility.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\gbr.Shared\gbr.Shared.vcxproj">
-      <Project>{35d90458-efbf-4a38-9c1b-c513fac6d4d7}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\GWCA\GWCA.2015.vcxproj">
-      <Project>{b3359f05-68cf-4e7f-b9d6-d106f6d48a38}</Project>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="Handlers\BonderHandler.h" />
     <ClInclude Include="Handlers\CommandHandler.h" />
     <ClInclude Include="Handlers\DropsHandler.h" />
@@ -143,6 +139,14 @@
     <ClInclude Include="Utilities\LogUtility.h" />
     <ClInclude Include="Utilities\PlayerUtility.h" />
     <ClInclude Include="Utilities\SkillUtility.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Dependencies\gbr.Shared\gbr.Shared.vcxproj">
+      <Project>{35d90458-efbf-4a38-9c1b-c513fac6d4d7}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Dependencies\GWCA\GWCA.2015.vcxproj">
+      <Project>{b3359f05-68cf-4e7f-b9d6-d106f6d48a38}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
