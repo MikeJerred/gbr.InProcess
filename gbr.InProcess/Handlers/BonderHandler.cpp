@@ -394,13 +394,21 @@ namespace gbr::InProcess {
         }
 
         GW::Agent* tank = nullptr;
+        GW::Agent* monk = nullptr;
         for (auto p : players) {
             auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
             auto agent = GW::Agents().GetAgentByID(id);
-            if (agent && !agent->GetIsDead() && (agent->Primary == (BYTE)GW::Constants::Profession::Ranger || agent->Primary == (BYTE)GW::Constants::Profession::Assassin)) {
-                LogUtility::Log(L"tank found");
-                tank = agent;
-                break;
+            if (agent && !agent->GetIsDead()) {
+                if (agent->Primary == (BYTE)GW::Constants::Profession::Ranger || agent->Primary == (BYTE)GW::Constants::Profession::Assassin) {
+                    LogUtility::Log(L"tank found");
+                    tank = agent;
+                    break;
+                }
+                if (agent->Primary == (BYTE)GW::Constants::Profession::Monk) {
+                    LogUtility::Log(L"monk found");
+                    monk = agent;
+                    break;
+                }
             }
         }
 
@@ -486,6 +494,24 @@ namespace gbr::InProcess {
                     if (!HasABond(id, protBonds)) {
                         if (player->pos.SquaredDistanceTo(agent->pos) < GW::Constants::SqrRange::Spellcast) {
                             LogUtility::Log(L"Using prot bond on tank");
+                            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Protective_Bond, id))
+                                return;
+                        }
+                    }
+                }
+                else if (monk && monk->Id == id) {
+                    LogUtility::Log(L"Ensure monk is bonded");
+                    if (!HasABond(id, balthBonds)) {
+                        if (player->pos.SquaredDistanceTo(agent->pos) < GW::Constants::SqrRange::Spellcast) {
+                            LogUtility::Log(L"Using balth on monk");
+                            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Balthazars_Spirit, id))
+                                return;
+                        }
+                    }
+
+                    if (!HasABond(id, protBonds)) {
+                        if (player->pos.SquaredDistanceTo(agent->pos) < GW::Constants::SqrRange::Spellcast) {
+                            LogUtility::Log(L"Using prot bond on monk");
                             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Protective_Bond, id))
                                 return;
                         }
