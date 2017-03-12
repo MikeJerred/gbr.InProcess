@@ -102,11 +102,12 @@ namespace gbr::InProcess {
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Edge_of_Extinction, 0))
                     return;
 
-                LogUtility::Log(L"Use Winnowing");
+               /* LogUtility::Log(L"Use Winnowing");
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Winnowing, 0)) {
-                    gbr::Shared::Commands::PlaceSpirit::ClearSpiritPos();
                     return;
-                }
+                }*/
+
+                gbr::Shared::Commands::PlaceSpirit::ClearSpiritPos();
             }
             else {
                 LogUtility::Log(L"Moving to spirit pos...");
@@ -171,14 +172,14 @@ namespace gbr::InProcess {
                     continue;
 
                 if (isVeil && tank && agent->Id == tank->Id) {
-                    if (agent->HP < 0.55f)
+                    if (agent->HP < 0.6f)
                         tankIsLow = true;
                 }
                 else if (agent->Id == emo->Id) {
                     if (agent->HP < 0.4f)
                         emoIsLow = true;
                 }
-                else if (agent->HP < 0.5f) {
+                else if (agent->HP < 0.5f && (!tank || tank->Id != agent->Id)) {
                     target = agent;
                     lowHpCount++;
                 }
@@ -191,11 +192,11 @@ namespace gbr::InProcess {
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Seed_of_Life, emo->Id))
                     return;
             }
-            else if (lowHpCount > 1 && player->Energy * player->MaxEnergy > 15) {
-                LogUtility::Log(L"Using Reversal of Fortune");
-                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Reversal_of_Fortune, target->Id))
+            /*else if (lowHpCount > 1 && player->Energy * player->MaxEnergy > 15) {
+                LogUtility::Log(L"Healing with ebon escape");
+                if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, target->Id))
                     return;
-            }
+            }*/
         }
 
         LogUtility::Log(L"See if we need to cast bonds...");
