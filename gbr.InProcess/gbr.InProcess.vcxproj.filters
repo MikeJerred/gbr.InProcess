@@ -35,6 +35,9 @@
     <ClCompile Include="Handlers\TradeHandler.cpp">
       <Filter>Handlers</Filter>
     </ClCompile>
+    <ClCompile Include="Handlers\MonkHandler.cpp">
+      <Filter>Handlers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utilities\SkillUtility.h">
@@ -60,6 +63,9 @@
       <Filter>Utilities</Filter>
     </ClInclude>
     <ClInclude Include="Handlers\TradeHandler.h">
+      <Filter>Handlers</Filter>
+    </ClInclude>
+    <ClInclude Include="Handlers\MonkHandler.h">
       <Filter>Handlers</Filter>
     </ClInclude>
   </ItemGroup>

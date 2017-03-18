@@ -23,6 +23,8 @@ namespace gbr::InProcess {
             spikerHandler = new SpikerHandler(playerType);
             break;
         case Utilities::PlayerType::Monk:
+            monkHandler = new MonkHandler(playerType);
+            break;
         case Utilities::PlayerType::Emo:
             bonderHandler = new BonderHandler(playerType);
             break;
@@ -40,6 +42,9 @@ namespace gbr::InProcess {
 
         if (dropsHandler)
             delete dropsHandler;
+
+        if (monkHandler)
+            delete monkHandler;
 
         if (spikerHandler)
             delete spikerHandler;

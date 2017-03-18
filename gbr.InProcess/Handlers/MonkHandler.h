@@ -6,7 +6,7 @@
 #include "../Utilities/PlayerUtility.h"
 
 namespace gbr::InProcess {
-    class BonderHandler {
+    class MonkHandler {
     private:
         Utilities::PlayerType playerType;
         DWORD hookId;
@@ -15,7 +15,7 @@ namespace gbr::InProcess {
 
         static bool HasABond(DWORD loginNumber, std::vector<GW::Buff> bonds);
     public:
-        BonderHandler(Utilities::PlayerType playerType);
-        ~BonderHandler();
+        MonkHandler(Utilities::PlayerType playerType);
+        ~MonkHandler();
     };
 }
