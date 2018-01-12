@@ -1,6 +1,8 @@
 #include <chrono>
 #include <thread>
 #include <GWCA/GWCA.h>
+#include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Managers/GameThreadMgr.h>
 #include <GWCA/Managers/ItemMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 #include <gbr.Shared/Commands/MoveTo.h>
@@ -17,13 +19,13 @@ namespace gbr::InProcess {
     };
 
     DropsHandler::DropsHandler() {
-        hookId = GW::Gamethread().AddPermanentCall([]() {
+        hookId = GW::GameThread::AddPermanentCall([]() {
             Tick();
         });
     }
 
     DropsHandler::~DropsHandler() {
-        GW::Gamethread().RemovePermanentCall(hookId);
+        GW::GameThread::RemovePermanentCall(hookId);
     }
 
     void DropsHandler::Tick() {
@@ -36,7 +38,7 @@ namespace gbr::InProcess {
 
         sleepUntil = currentTime + 250;
 
-        auto player = GW::Agents().GetPlayer();
+        auto player = GW::Agents::GetPlayer();
         if (!player)
             return;
 
@@ -46,7 +48,7 @@ namespace gbr::InProcess {
                 gbr::Shared::Commands::MoveTo::ClearPos();
             }
             else if (!GW::Skillbar::GetPlayerSkillbar().Casting) {
-                GW::Agents().Move(pos.Value());
+                GW::Agents::Move(pos.Value());
             }
 
             return;
@@ -61,13 +63,13 @@ namespace gbr::InProcess {
     }
 
     bool DropsHandler::PickupNearbyGem() {
-        auto player = GW::Agents().GetPlayer();
+        auto player = GW::Agents::GetPlayer();
 
         if (player) {
             auto pos = player->pos;
 
-            auto agents = GW::Agents().GetAgentArray();
-            auto items = GW::Items().GetItemArray();
+            auto agents = GW::Agents::GetAgentArray();
+            auto items = GW::Items::GetItemArray();
 
             if (agents.valid() && items.valid()) {
                 GW::Agent* chest = nullptr;
@@ -83,11 +85,11 @@ namespace gbr::InProcess {
                             for (auto modelId : wantedModelIds) {
                                 if (item->ModelId == modelId) {
                                     if (agent->pos.SquaredDistanceTo(pos) < GW::Constants::SqrRange::Adjacent) {
-                                        GW::Items().PickUpItem(item);
+                                        GW::Items::PickUpItem(item);
                                         return true;
                                     }
                                     else {
-                                        GW::Agents().Move(agent->pos);
+                                        GW::Agents::Move(agent->pos);
                                         return false;
                                     }
                                 }
@@ -102,11 +104,11 @@ namespace gbr::InProcess {
 
                 if (chest) {
                     if (chest->pos.SquaredDistanceTo(pos) < GW::Constants::SqrRange::Adjacent) {
-                        GW::Agents().GoSignpost(chest);
+                        GW::Agents::GoSignpost(chest);
                         return true;
                     }
                     else {
-                        GW::Agents().Move(chest->pos);
+                        GW::Agents::Move(chest->pos);
                         return false;
                     }
                 }

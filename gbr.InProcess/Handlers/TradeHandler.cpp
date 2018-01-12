@@ -1,5 +1,9 @@
 #include <GWCA/GWCA.h>
+#include <GWCA/Context/GameContext.h>
+#include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Managers/GameThreadMgr.h>
 #include <GWCA/Managers/ItemMgr.h>
+#include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/TradeMgr.h>
 
@@ -18,13 +22,13 @@ namespace gbr::InProcess {
         state = State::Waiting;
         tradingItemIds = std::vector<DWORD>();
 
-        hookId = GW::Gamethread().AddPermanentCall([this]() {
+        hookId = GW::GameThread::AddPermanentCall([this]() {
             Tick();
         });
     }
 
     TradeHandler::~TradeHandler() {
-        GW::Gamethread().RemovePermanentCall(hookId);
+        GW::GameThread::RemovePermanentCall(hookId);
     }
 
     void TradeHandler::Tick() {
@@ -37,14 +41,14 @@ namespace gbr::InProcess {
 
         sleepUntil = currentTime + 1000;
 
-        auto player = GW::Agents().GetPlayer();
-        if (!player || !GW::Map().IsMapLoaded() || GW::Map().GetInstanceType() != GW::Constants::InstanceType::Outpost) {
+        auto player = GW::Agents::GetPlayer();
+        if (!player || !GW::Map::IsMapLoaded() || GW::Map::GetInstanceType() != GW::Constants::InstanceType::Outpost) {
             state = State::Waiting;
             return;
         }
 
-        auto agents = GW::Agents().GetAgentArray();
-        auto partyInfo = GW::Partymgr().GetPartyInfo();
+        auto agents = GW::Agents::GetAgentArray();
+        auto partyInfo = GW::PartyMgr::GetPartyInfo();
         if (!agents.valid() || !partyInfo || !partyInfo->players.valid() || !GW::GameContext::instance()->trade)
             return;
 
@@ -52,8 +56,8 @@ namespace gbr::InProcess {
 
         GW::Agent* tank = nullptr;
         for (auto p : partyMembers) {
-            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
-            auto agent = GW::Agents().GetAgentByID(id);
+            auto id = GW::Agents::GetAgentIdByLoginNumber(p.loginnumber);
+            auto agent = GW::Agents::GetAgentByID(id);
 
             if (agent
                 && (agent->Primary == (BYTE)GW::Constants::Profession::Ranger
@@ -86,25 +90,25 @@ namespace gbr::InProcess {
         auto tradeContext = GW::GameContext::instance()->trade;
 
         if (tradeContext->state == tradeContext->TRADE_INITIATED) {
-            GW::Trademgr().CancelTrade();
+            GW::Trade::CancelTrade();
             state = State::StartingTrade;
         }
     }
 
     void TradeHandler::StartingTradeTick(GW::Agent* tank) {
-        GW::Trademgr().OpenTradeWindow(tank->Id);
+        GW::Trade::OpenTradeWindow(tank->Id);
         state = State::InTrade;
     }
 
     void TradeHandler::InTradeTick() {
         auto tradeContext = GW::GameContext::instance()->trade;
-        if (tradeContext->state != tradeContext->TRADE_INITIATED || !GW::Items().GetBagArray())
+        if (tradeContext->state != tradeContext->TRADE_INITIATED || !GW::Items::GetBagArray())
             return;
 
         GW::Item* item = nullptr;
 
         for (auto modelId : itemsToTrade) {
-            item = GW::Items().GetItemByModelId(modelId);
+            item = GW::Items::GetItemByModelId(modelId);
 
             if (item) {
                 for (auto tradedItemId : tradingItemIds) {
@@ -121,12 +125,12 @@ namespace gbr::InProcess {
         }
 
         if (!item) {
-            GW::Trademgr().SubmitOffer(0);
+            GW::Trade::SubmitOffer(0);
             state = State::FinishTrade;
         }
         else {
             tradingItemIds.push_back(item->ItemId);
-            GW::Trademgr().OfferItem(item->ItemId, item->Quantity);
+            GW::Trade::OfferItem(item->ItemId, item->Quantity);
         }
     }
 
@@ -139,7 +143,7 @@ namespace gbr::InProcess {
         }
 
         if (tradeContext->partner.gold > 0) {
-            GW::Trademgr().AcceptTrade();
+            GW::Trade::AcceptTrade();
             tradingItemIds.clear();
             state = State::Waiting;
         }

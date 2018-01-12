@@ -1,7 +1,10 @@
 #include <algorithm>
 #include <GWCA/GWCA.h>
+#include <GWCA/Managers/AgentMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/EffectMgr.h>
+#include <GWCA/Managers/GameThreadMgr.h>
+#include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
@@ -16,19 +19,19 @@ namespace gbr::InProcess {
     using SkillUtility = Utilities::SkillUtility;
 
     SpikerHandler::SpikerHandler(Utilities::PlayerType playerType) : playerType(playerType) {
-        hookId = GW::Gamethread().AddPermanentCall([this]() {
+        hookId = GW::GameThread::AddPermanentCall([this]() {
             Tick();
         });
 
-        gameServerHookId = GW::StoC().AddGameServerEvent<GW::Packet::StoC::P114_DialogButton>([](GW::Packet::StoC::P114_DialogButton* packet) {
-            GW::Agents().Dialog(packet->dialog_id);
+        gameServerHookId = GW::StoC::AddCallback<GW::Packet::StoC::P114_DialogButton>([](GW::Packet::StoC::P114_DialogButton* packet) {
+            GW::Agents::Dialog(packet->dialog_id);
             return false;
         });
     }
 
     SpikerHandler::~SpikerHandler() {
-        GW::Gamethread().RemovePermanentCall(hookId);
-        GW::StoC().RemoveGameServerEvent<GW::Packet::StoC::P114_DialogButton>(gameServerHookId);
+        GW::GameThread::RemovePermanentCall(hookId);
+        GW::StoC::RemoveCallback<GW::Packet::StoC::P114_DialogButton>(gameServerHookId);
     }
 
     void SpikerHandler::Tick() {
@@ -40,15 +43,15 @@ namespace gbr::InProcess {
 
         sleepUntil = currentTime + 10;
 
-        if (!GW::Map().IsMapLoaded()) {
+        if (!GW::Map::IsMapLoaded()) {
             gbr::Shared::Commands::MoveTo::ClearPos();
             sleepUntil += 1000;
             return;
         }
 
-        auto player = GW::Agents().GetPlayer();
-        auto agents = GW::Agents().GetAgentArray();
-        auto partyInfo = GW::Partymgr().GetPartyInfo();
+        auto player = GW::Agents::GetPlayer();
+        auto agents = GW::Agents::GetAgentArray();
+        auto partyInfo = GW::PartyMgr::GetPartyInfo();
 
         if (!player || player->GetIsDead() || !agents.valid() || !partyInfo || !partyInfo->players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
             return;
@@ -57,11 +60,44 @@ namespace gbr::InProcess {
 
         auto interactAgentId = gbr::Shared::Commands::InteractAgent::GetAgentId();
 
+
+        auto foundryEffect = GW::Effects::GetPlayerEffectById(GW::Constants::SkillID::Enduring_Torment);
+        bool isFoundry = foundryEffect.SkillId > 0;
+
+        DWORD recallBuffId = 0;
+        auto buffs = GW::Effects::GetPlayerBuffArray();
+        if (buffs.valid()) {
+            for (auto buff : buffs) {
+                if (buff.SkillId == (DWORD)GW::Constants::SkillID::Recall) {
+                    recallBuffId = buff.BuffId;
+                    break;
+                }
+            }
+        }
+
+        if (isFoundry && recallBuffId > 0) {
+            bool cancelRecall = true;
+            for (auto agent : agents) {
+                if (agent
+                    && agent->IsNPC()
+                    && agent->PlayerNumber == 5217
+                    && agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast*1.5) { // roughly spellcast range + 25%
+
+                    cancelRecall = false;
+                }
+            }
+
+            if (cancelRecall) {
+                GW::Effects::DropBuff(recallBuffId);
+                return;
+            }
+        }
+
         GW::Agent* emo = nullptr;
         GW::Agent* tank = nullptr;
         for (auto p : players) {
-            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
-            auto agent = GW::Agents().GetAgentByID(id);
+            auto id = GW::Agents::GetAgentIdByLoginNumber(p.loginnumber);
+            auto agent = GW::Agents::GetAgentByID(id);
 
             if (agent) {
                 if (agent->Primary == (BYTE)GW::Constants::Profession::Elementalist && agent->Secondary == (BYTE)GW::Constants::Profession::Monk) {
@@ -87,7 +123,7 @@ namespace gbr::InProcess {
                         }
                         else {
                             for (auto p : players) {
-                                auto agentId = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+                                auto agentId = GW::Agents::GetAgentIdByLoginNumber(p.loginnumber);
 
                                 if (tank && agentId == tank->Id)
                                     continue;
@@ -98,7 +134,7 @@ namespace gbr::InProcess {
                                 if (agentId == player->Id)
                                     continue;
 
-                                auto agent = GW::Agents().GetAgentByID(agentId);
+                                auto agent = GW::Agents::GetAgentByID(agentId);
                                 auto agentToEmo = emo->pos.SquaredDistanceTo(agent->pos);
 
                                 if (distanceToEmo - agentToEmo > GW::Constants::SqrRange::Nearby) {
@@ -130,14 +166,25 @@ namespace gbr::InProcess {
                             auto agentToPlayer = player->pos - agent->pos;
                             auto newPos = agent->pos + (agentToPlayer.Normalized() * (GW::Constants::Range::Spellcast - 10.0f));
 
-                            GW::Agents().Move(newPos.x, newPos.y);
+                            GW::Agents::Move(newPos.x, newPos.y);
                         }
 
                         return;
                     }
                     else if (agent->IsNPC()) {
-                        GW::Agents().GoNPC(agent);
-                        return;
+                        if (isFoundry
+                            && recallBuffId == 0
+                            && agent->PlayerNumber == 5217
+                            && agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Nearby) {
+                            // todo: check that our position is not near the non-quest snakes
+                            // if this is a snake use recall on it first
+                            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Recall, agent->Id))
+                                return;
+                        }
+                        else {
+                            GW::Agents::GoNPC(agent);
+                            return;
+                        }
                     }
                     else if (agent->IsPlayer()) {
                         // jump to target
@@ -149,7 +196,7 @@ namespace gbr::InProcess {
                             return;
                         }
                         else {
-                            GW::Agents().Move(agent->pos);
+                            GW::Agents::Move(agent->pos);
                             return;
                         }
                     }
@@ -158,11 +205,11 @@ namespace gbr::InProcess {
                 }
                 else if (agent->IsPlayer()) {
                     if (agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                        GW::Agents().Move(player->pos); // stop moving
+                        GW::Agents::Move(player->pos); // stop moving
                         RezTarget(agent);
                     }
                     else {
-                        GW::Agents().Move(agent->pos);
+                        GW::Agents::Move(agent->pos);
                         return;
                     }
                 }
@@ -171,7 +218,7 @@ namespace gbr::InProcess {
             }
         }
 
-        auto eternalAura = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Eternal_Aura);
+        auto eternalAura = GW::Effects::GetPlayerEffectById(GW::Constants::SkillID::Eternal_Aura);
         if (eternalAura.SkillId == 0) {
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Eternal_Aura, player->Id))
                 return;
@@ -239,7 +286,7 @@ namespace gbr::InProcess {
         if ((target->GetIsEnchanted() || target->GetIsConditioned()) && SkillUtility::TryUseSkill(GW::Constants::SkillID::Necrosis, target->Id))
             return;
 
-        auto player = GW::Agents().GetPlayer();
+        auto player = GW::Agents::GetPlayer();
         if (player && player->Energy * player->MaxEnergy > 20) {
             if (target->HP < 0.5f && !target->GetIsDeepWounded()) {
                 if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Finish_Him, target->Id))
@@ -378,9 +425,9 @@ namespace gbr::InProcess {
     void SpikerHandler::JumpToTarget(GW::Agent* target) {
         if (!SkillUtility::TryUseSkill(GW::Constants::SkillID::Ebon_Escape, target->Id)) {
             if (target->IsNPC())
-                GW::Agents().GoNPC(target);
+                GW::Agents::GoNPC(target);
             else if (target->IsPlayer())
-                GW::Agents().Move(target->pos);
+                GW::Agents::Move(target->pos);
         }
     }
 
@@ -392,7 +439,7 @@ namespace gbr::InProcess {
         std::vector<GW::Agent*> enemies;
 
         auto targetPos = target->pos;
-        for (auto agent : GW::Agents().GetAgentArray()) {
+        for (auto agent : GW::Agents::GetAgentArray()) {
             if (agent
                 && agent->Id != target->Id
                 && !agent->GetIsDead()
@@ -415,7 +462,7 @@ namespace gbr::InProcess {
         std::vector<GW::Agent*> enemies;
 
         auto targetPos = target->pos;
-        for (auto agent : GW::Agents().GetAgentArray()) {
+        for (auto agent : GW::Agents::GetAgentArray()) {
             if (agent
                 && !agent->GetIsDead()
                 && agent->Allegiance == 3

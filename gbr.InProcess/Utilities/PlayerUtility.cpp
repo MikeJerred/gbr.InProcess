@@ -1,4 +1,5 @@
 #include <GWCA/GWCA.h>
+#include <GWCA/Managers/AgentMgr.h>
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 
@@ -28,8 +29,8 @@ namespace gbr::InProcess::Utilities {
         }
 
         if (isEsurge) {
-            auto loginNumber = GW::Agents().GetPlayer()->LoginNumber;
-            auto players = GW::Partymgr().GetPartyInfo()->players;
+            auto loginNumber = GW::Agents::GetPlayer()->LoginNumber;
+            auto players = GW::PartyMgr::GetPartyInfo()->players;
 
             for (int i = 0; i < players.size(); ++i) {
                 auto player = players[i];

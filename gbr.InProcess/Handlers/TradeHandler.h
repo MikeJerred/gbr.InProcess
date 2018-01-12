@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Windows.h>
+#include <vector>
+#include <GWCA/GameEntities/Agent.h>
 
 namespace gbr::InProcess {
     class TradeHandler {

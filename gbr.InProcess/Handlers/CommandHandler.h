@@ -1,6 +1,7 @@
 #pragma once
 
 #include <thread>
+#include <vector>
 #include <Windows.h>
 
 namespace gbr::InProcess {

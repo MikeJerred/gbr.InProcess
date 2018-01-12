@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Windows.h>
-
+#include <GWCA/GameEntities/Agent.h>
 #include "../Utilities/PlayerUtility.h"
 
 namespace gbr::InProcess {

@@ -1,3 +1,7 @@
+#include <GWCA/GWCA.h>
+#include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Managers/GameThreadMgr.h>
+
 #include "Root.h"
 
 namespace gbr::InProcess {
@@ -5,7 +9,7 @@ namespace gbr::InProcess {
     bool Root::mustQuit = false;
 
     Root::Root(HMODULE hModule) {
-        auto playerName = GW::Agents().GetPlayerNameByLoginNumber(GW::Agents().GetPlayer()->LoginNumber);
+        auto playerName = GW::Agents::GetPlayerNameByLoginNumber(GW::Agents::GetPlayer()->LoginNumber);
         auto playerType = Utilities::PlayerUtility::GetPlayerType();
 
         Utilities::LogUtility::Init(playerName);
@@ -61,14 +65,14 @@ namespace gbr::InProcess {
             FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
         }
 
-        if (!GW::Api::Initialize()) {
+        if (!GW::Initialize()) {
             MessageBoxA(0, "Failed to load GWCA.", "gbr Error", 0);
             FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
         }
 
         instance = new Root(hModule);
 
-        GW::Gamethread().ToggleRenderHook();
+        GW::GameThread::ToggleRenderHook();
 
         while (!mustQuit) {
             Sleep(250);
@@ -78,7 +82,7 @@ namespace gbr::InProcess {
             }
 
             if (GetAsyncKeyState(VK_HOME) & 1) {
-                GW::Gamethread().ToggleRenderHook();
+                GW::GameThread::ToggleRenderHook();
             }
         }
 
@@ -87,7 +91,7 @@ namespace gbr::InProcess {
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
-        GW::Api::Destruct();
+        GW::Terminate();
         FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
     }
 

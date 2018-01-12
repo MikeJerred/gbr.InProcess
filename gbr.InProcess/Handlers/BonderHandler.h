@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include <Windows.h>
 #include <GWCA/GWCA.h>
 #include <GWCA/GameEntities/Skill.h>

@@ -1,6 +1,9 @@
 #include <GWCA/GWCA.h>
+#include <GWCA/Managers/AgentMgr.h>
 #include <GWCA/Managers/EffectMgr.h>
+#include <GWCA/Managers/GameThreadMgr.h>
 #include <GWCA/Managers/ItemMgr.h>
+#include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/PartyMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
 #include <GWCA/Utilities/Maybe.h>
@@ -16,13 +19,13 @@ namespace gbr::InProcess {
     using SkillUtility = Utilities::SkillUtility;
 
     MonkHandler::MonkHandler(Utilities::PlayerType playerType) : playerType(playerType) {
-        hookId = GW::Gamethread().AddPermanentCall([this]() {
+        hookId = GW::GameThread::AddPermanentCall([this]() {
             Tick();
         });
     }
 
     MonkHandler::~MonkHandler() {
-        GW::Gamethread().RemovePermanentCall(hookId);
+        GW::GameThread::RemovePermanentCall(hookId);
     }
 
     void MonkHandler::Tick() {
@@ -34,19 +37,19 @@ namespace gbr::InProcess {
 
         sleepUntil = currentTime + 10;
 
-        if (!GW::Map().IsMapLoaded()) {
+        if (!GW::Map::IsMapLoaded()) {
             gbr::Shared::Commands::MoveTo::ClearPos();
             sleepUntil += 1000;
             LogUtility::Log(L"Waiting for map load...");
             return;
         }
 
-        if (GW::Map().GetInstanceType() != GW::Constants::InstanceType::Explorable)
+        if (GW::Map::GetInstanceType() != GW::Constants::InstanceType::Explorable)
             return;
 
-        auto player = GW::Agents().GetPlayer();
-        auto agents = GW::Agents().GetAgentArray();
-        auto partyInfo = GW::Partymgr().GetPartyInfo();
+        auto player = GW::Agents::GetPlayer();
+        auto agents = GW::Agents::GetAgentArray();
+        auto partyInfo = GW::PartyMgr::GetPartyInfo();
         if (!player || player->GetIsDead() || !agents.valid() || !partyInfo || !partyInfo->players.valid() || GW::Skillbar::GetPlayerSkillbar().Casting)
             return;
 
@@ -54,10 +57,10 @@ namespace gbr::InProcess {
 
         auto players = partyInfo->players;
 
-        auto veilEffect = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Demonic_Miasma);
+        auto veilEffect = GW::Effects::GetPlayerEffectById(GW::Constants::SkillID::Demonic_Miasma);
         bool isVeil = veilEffect.SkillId > 0;
 
-        auto foundryEffect = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Enduring_Torment);
+        auto foundryEffect = GW::Effects::GetPlayerEffectById(GW::Constants::SkillID::Enduring_Torment);
         bool isFoundry = foundryEffect.SkillId > 0;
 
         static long long waitUntilToPing = 0;
@@ -70,7 +73,7 @@ namespace gbr::InProcess {
                     && agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Compass) {
 
                     LogUtility::Log(L"Ping for snakes");
-                    GW::Agents().CallTarget(agent);
+                    GW::Agents::CallTarget(agent);
                     waitUntilToPing = currentTime + 10000;
                     return;
                 }
@@ -79,7 +82,13 @@ namespace gbr::InProcess {
 
         LogUtility::Log(L"We don't need to ping for snakes!");
 
-        auto blessedAura = GW::Effects().GetPlayerEffectById(GW::Constants::SkillID::Blessed_Aura);
+        if (player->Energy*player->MaxEnergy < 5) {
+            LogUtility::Log(L"Energy low, using blessed signet");
+            if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Blessed_Signet, player->Id))
+                return;
+        }
+
+        auto blessedAura = GW::Effects::GetPlayerEffectById(GW::Constants::SkillID::Blessed_Aura);
         if (blessedAura.SkillId == 0) {
             LogUtility::Log(L"Use Blessed Aura");
             if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Blessed_Aura, player->Id))
@@ -104,7 +113,7 @@ namespace gbr::InProcess {
             }
             else {
                 LogUtility::Log(L"Moving to spirit pos...");
-                GW::Agents().Move(spiritPos.Value());
+                GW::Agents::Move(spiritPos.Value());
                 return;
             }
         }
@@ -114,12 +123,12 @@ namespace gbr::InProcess {
         LogUtility::Log(L"See if we need to rez anyone!");
         for (auto agent : agents) {
             if (agent && agent->GetIsDead() && agent->IsPlayer() && agent->Id != player->Id && agent->pos.SquaredDistanceTo(player->pos) < GW::Constants::SqrRange::Spellcast) {
-                auto buffs = GW::Effects().GetPlayerBuffArray();
+                auto buffs = GW::Effects::GetPlayerBuffArray();
                 if (buffs.valid()) {
                     for (auto buff : buffs) {
                         if (buff.SkillId == (DWORD)GW::Constants::SkillID::Unyielding_Aura) {
                             sleepUntil += 500;
-                            GW::Effects().DropBuff(buff.BuffId);
+                            GW::Effects::DropBuff(buff.BuffId);
                             return;
                         }
                     }
@@ -133,8 +142,8 @@ namespace gbr::InProcess {
         GW::Agent* emo = nullptr;
         GW::Agent* tank = nullptr;
         for (auto p : players) {
-            auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
-            auto agent = GW::Agents().GetAgentByID(id);
+            auto id = GW::Agents::GetAgentIdByLoginNumber(p.loginnumber);
+            auto agent = GW::Agents::GetAgentByID(id);
 
             if (agent && !agent->GetIsDead()) {
                 if (agent->Primary == (BYTE)GW::Constants::Profession::Elementalist && agent->Secondary == (BYTE)GW::Constants::Profession::Monk) {
@@ -158,8 +167,8 @@ namespace gbr::InProcess {
             GW::Agent* target = nullptr;
 
             for (auto p : players) {
-                auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
-                auto agent = GW::Agents().GetAgentByID(id);
+                auto id = GW::Agents::GetAgentIdByLoginNumber(p.loginnumber);
+                auto agent = GW::Agents::GetAgentByID(id);
 
                 if (!agent || agent->GetIsDead())
                     continue;
@@ -193,7 +202,7 @@ namespace gbr::InProcess {
         }
 
         LogUtility::Log(L"See if we need to cast bonds...");
-        auto buffs = GW::Effects().GetPlayerBuffArray();
+        auto buffs = GW::Effects::GetPlayerBuffArray();
         if (buffs.valid()) {
             std::vector<GW::Buff> lifeBonds;
             auto hasUa = false;
@@ -213,12 +222,12 @@ namespace gbr::InProcess {
                 return;
 
             for (auto p : players) {
-                auto id = GW::Agents().GetAgentIdByLoginNumber(p.loginnumber);
+                auto id = GW::Agents::GetAgentIdByLoginNumber(p.loginnumber);
 
                 if (id == player->Id)
                     continue;
 
-                auto agent = GW::Agents().GetAgentByID(id);
+                auto agent = GW::Agents::GetAgentByID(id);
                 if (!agent || agent->GetIsDead())
                     continue;
 
