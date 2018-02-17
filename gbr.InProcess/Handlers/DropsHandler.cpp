@@ -79,7 +79,7 @@ namespace gbr::InProcess {
                         continue;
 
                     if (agent->GetIsItemType()) {
-                        auto item = items[agent->itemid];
+                        auto item = items[agent->ItemID];
 
                         if (agent->Owner == player->Id) {
                             for (auto modelId : wantedModelIds) {
@@ -96,7 +96,7 @@ namespace gbr::InProcess {
                             }
                         }
                     }
-                    else if (agent->GetIsSignpostType()) {
+                    else if (agent->GetIsGadgetType()) {
                         // prioritize picking up gems over opening chest
                         chest = agent;
                     }
