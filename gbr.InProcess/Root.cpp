@@ -75,14 +75,15 @@ namespace gbr::InProcess {
         GW::GameThread::ToggleRenderHook();
 
         while (!mustQuit) {
-            Sleep(250);
+            Sleep(50);
 
             if (GetAsyncKeyState(VK_END) & 1) {
-                //mustQuit = true;
+                mustQuit = true;
             }
 
             if (GetAsyncKeyState(VK_HOME) & 1) {
                 GW::GameThread::ToggleRenderHook();
+				Sleep(500);
             }
         }
 

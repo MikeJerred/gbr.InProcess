@@ -15,12 +15,22 @@ namespace gbr::InProcess {
     CommandHandler::CommandHandler(HMODULE hModule, std::wstring playerName) : hModule(hModule) {
         pipeName = std::wstring(L"\\\\.\\pipe\\gbr_") + playerName;
 
+		mustQuit = false;
+
         connectionThread = std::thread([this]() {
             Connect();
         });
 
         listenThreads = std::vector<std::thread>();
     }
+
+	CommandHandler::~CommandHandler() {
+		mustQuit = true;
+
+		for (auto& thread : listenThreads) {
+			thread.join();
+		}
+	}
 
     void CommandHandler::Connect() {
         while (true) {
@@ -59,11 +69,11 @@ namespace gbr::InProcess {
         BYTE buffer[bufferSize];
         DWORD bytesRead;
 
-        while (pipeHandle != INVALID_HANDLE_VALUE) {
+        while (pipeHandle != INVALID_HANDLE_VALUE && !mustQuit) {
             if (ReadFile(pipeHandle, buffer, bufferSize, &bytesRead, NULL)) {
                 if (BaseCommand::ExecuteCommand((BaseCommand::BaseRequest*)buffer)) {
                     //FreeLibraryAndExitThread(hModule, EXIT_SUCCESS);
-                    //Root::Quit();
+                    Root::Quit();
                     return;
                 }
             }

@@ -12,11 +12,13 @@ namespace gbr::InProcess {
         std::wstring pipeName;
         std::thread connectionThread;
         std::vector<std::thread> listenThreads;
+		bool mustQuit;
 
         void Connect();
         void Listen(HANDLE pipeHandle);
     public:
         CommandHandler(HMODULE hModule, std::wstring playerName);
+		~CommandHandler();
 
         /*template<class TCommandRequest>
         void Send(TCommandRequest request) {
