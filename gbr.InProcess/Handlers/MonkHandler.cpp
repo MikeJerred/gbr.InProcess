@@ -9,6 +9,7 @@
 #include <GWCA/Utilities/Maybe.h>
 #include <gbr.Shared/Commands/PlaceSpirit.h>
 #include <gbr.Shared/Commands/MoveTo.h>
+#include <gbr.Shared/Commands/Seed.h>
 
 #include "../Utilities/LogUtility.h"
 #include "../Utilities/SkillUtility.h"
@@ -160,6 +161,14 @@ namespace gbr::InProcess {
         // if we can find the emo, see if we need to seed
         if (emo) {
             LogUtility::Log(L"emo found!");
+
+			if (gbr::Shared::Commands::Seed::IsSeedRequired()) {
+				LogUtility::Log(L"Using seed");
+				if (SkillUtility::TryUseSkill(GW::Constants::SkillID::Seed_of_Life, emo->Id)) {
+					gbr::Shared::Commands::Seed::SetSeedRequired(false);
+					return;
+				}
+			}
 
             int lowHpCount = 0;
             bool tankIsLow = false;
